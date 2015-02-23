@@ -9,6 +9,11 @@
 
 void* ivt[TRAP_VECTOR_SIZE];
 
+struct node {
+  node* nextNode;
+  void* base;
+};
+
 void trapKernel(ExceptionStackFrame *frame){
 	TracePrintf(0, "trapKernel");
 	Halt();
@@ -61,7 +66,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	ptr_to_transmit = &trapTtyTransmit;
 	ivt[TRAP_TTY_TRANSMIT] = ptr_to_transmit;
 	
-	
+	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
+
 
 }
 
