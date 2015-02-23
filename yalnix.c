@@ -1,15 +1,13 @@
-#include stdio.h
-#include stdlib.h
-#include string.h
+#include "stdio.h"
+#include "stdlib.h"
+#include "string.h"
 
 #include <comp421/hardware.h>
 #include <comp421/yalnix.h>
 
-int SetKernelBrk(void *addr){
-	TracePrintf(0,"kernel break");
-}
 
-int* ivt[TRAP_VECTOR_SIZE];
+
+void* ivt[TRAP_VECTOR_SIZE];
 
 void trapKernel(ExceptionStackFrame *frame){
 	TracePrintf(0, "trapKernel");
@@ -41,32 +39,34 @@ void trapTtyTransmit(ExceptionStackFrame *frame){
 }
 
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
-	void (*ptr_to_kernel)(int);
+	void (*ptr_to_kernel)(ExceptionStackFrame *);
 	ptr_to_kernel = &trapKernel;
 	ivt[TRAP_KERNEL] = ptr_to_kernel;
-	void (*ptr_to_clock)(int);
+	void (*ptr_to_clock)(ExceptionStackFrame *);
 	ptr_to_clock = &trapClock;
 	ivt[TRAP_CLOCK] = ptr_to_clock;
-	void (*ptr_to_illegal)(int);
+	void (*ptr_to_illegal)(ExceptionStackFrame *);
 	ptr_to_illegal = &trapIllegal;
 	ivt[TRAP_ILLEGAL] = ptr_to_illegal;
-	void (*ptr_to_memory)(int);
+	void (*ptr_to_memory)(ExceptionStackFrame *);
 	ptr_to_memory = &trapMemory;
 	ivt[TRAP_MEMORY] = ptr_to_memory;
-	void (*ptr_to_math)(int);
+	void (*ptr_to_math)(ExceptionStackFrame *);
 	ptr_to_math = &trapMath;
 	ivt[TRAP_MATH] = ptr_to_math;
-	void (*ptr_to_receive)(int);
+	void (*ptr_to_receive)(ExceptionStackFrame *);
 	ptr_to_receive = &trapTtyReceive;
 	ivt[TRAP_TTY_RECEIVE] = ptr_to_receive;
-	void (*ptr_to_transmit)(int);
+	void (*ptr_to_transmit)(ExceptionStackFrame *);
 	ptr_to_transmit = &trapTtyTransmit;
 	ivt[TRAP_TTY_TRANSMIT] = ptr_to_transmit;
+	
+	
 
 }
 
+int SetKernelBrk(void *addr){
+	TracePrintf(0,"kernel break");
+	return -1;
+}
 
-
-// int main(){
-	// return 0;
-// }
