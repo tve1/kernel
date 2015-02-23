@@ -75,6 +75,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	while (current_spot + PAGESIZE < pmem_size) {
 		struct node* new_page = malloc(sizeof(struct node*));
 		new_page->nextNode = old_page;
+		new_page->base = current_spot;
 		old_page = new_page;
 		current_spot += PAGESIZE;
 		printf("%p -> %p\n", new_page, new_page->nextNode);
@@ -82,7 +83,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 }
 
 int SetKernelBrk(void *addr){
+	printf("Brk\n");
 	TracePrintf(0,"kernel break");
-	return -1;
+	return 0;
 }
 
