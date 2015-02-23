@@ -10,9 +10,11 @@
 void* ivt[TRAP_VECTOR_SIZE];
 
 struct node {
-  node* nextNode;
+  struct node* nextNode;
   void* base;
 };
+
+struct node* physical_pages;
 
 void trapKernel(ExceptionStackFrame *frame){
 	TracePrintf(0, "trapKernel");
@@ -68,7 +70,15 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
 
-
+	long current_spot = (long) orig_brk;
+	struct node* old_page = NULL;
+	while (current_spot + PAGESIZE < pmem_size) {
+		struct node* new_page = malloc(sizeof(struct node*));
+		new_page->nextNode = old_page;
+		old_page = new_page;
+		current_spot += PAGESIZE;
+		printf("%p -> %p\n", new_page, new_page->nextNode);
+	}
 }
 
 int SetKernelBrk(void *addr){
