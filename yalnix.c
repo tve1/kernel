@@ -89,10 +89,13 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
 
-	long current_spot = (long) orig_brk;
-	
-	int num_nodes = (pmem_size - current_spot) / PAGESIZE;
+	unsigned long current_spot = (unsigned long) orig_brk;
+	printf("pmem_size %p\n", (void*)pmem_size);
+	printf("current spot %p\n", orig_brk);
+	int num_nodes = (current_spot) / PAGESIZE;
+	printf("numNodes %d\n", num_nodes);
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
+
 	int i;
 
 	for (i = 0; i < num_nodes; i++) {
@@ -100,17 +103,22 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		physical_pages[i] = new_page;
 	}
 
-	current_spot = (long) &_etext;
+	current_spot = (unsigned long) &_etext;
+	printf("current spot %p\n", (void*)current_spot);
 
 	int index = 0;
 	
 	// Only going one-direction
-	while (current_spot + PAGESIZE < pmem_size) {
+	while (current_spot - PAGESIZE > 0) {
+		// printf("index %d\n", index);    
 		physical_pages[index]->base = (void*)current_spot;
-		current_spot += PAGESIZE;
+		// printf("base %d %p\n", index, physical_pages[index]->base);    
+		current_spot -= PAGESIZE;
 		index++;
 	}
+	printf("we out here\n");
 	physical_pages_length = index;
+
 }
 
 
