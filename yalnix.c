@@ -6,7 +6,6 @@
 #include <comp421/yalnix.h>
 
 
-
 void* ivt[TRAP_VECTOR_SIZE];
 
 struct node {
@@ -14,6 +13,8 @@ struct node {
   int isRemoved;
   int index;
 };
+
+struct pte ** page_table;
 
 struct node** physical_pages;
 int physical_pages_length;
@@ -93,8 +94,22 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	unsigned long current_spot = (unsigned long) orig_brk;
 	int num_nodes = (current_spot) / PAGESIZE;
+	int num_ptes = (pmem_size - PMEM_BASE) / PAGESIZE;
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
-
+	page_table = malloc(sizeof(struct pte *) * num_ptes);
+	
+	int h;
+	
+	for (h = 0; h < num_ptes; h++){
+		struct pte * entry = malloc(sizeof(struct pte));
+		entry->valid = 0;
+		entry->kprot = PROT_NONE;
+		entry->uprot = PROT_NONE;
+		entry->pfn = h;
+		printf("%d\n", entry->pfn);
+		page_table[h] = entry;
+	}
+	
 	int i;
 
 	for (i = 0; i < num_nodes; i++) {
@@ -102,7 +117,10 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		physical_pages[i] = new_page;
 		new_page->index = i;
 	}
-
+	
+	
+	
+	
 	current_spot = (unsigned long) &_etext;
 
 	int index = 0;
