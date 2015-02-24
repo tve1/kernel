@@ -5,6 +5,7 @@
 #include <comp421/hardware.h>
 #include <comp421/yalnix.h>
 
+#define PMEM_1_BASE VMEM_1_BASE
 
 void* ivt[TRAP_VECTOR_SIZE];
 
@@ -14,10 +15,12 @@ struct node {
   int index;
 };
 
-struct pte ** page_table;
+struct pte** page_table;
 
 struct node** physical_pages;
 int physical_pages_length;
+
+void* actual_brk;
 
 void trapKernel(ExceptionStackFrame *frame){
 	TracePrintf(0, "trapKernel");
@@ -48,7 +51,7 @@ void trapTtyTransmit(ExceptionStackFrame *frame){
 	Halt();
 }
 
-struct node * allocPhysicalPage(){
+struct node* allocPhysicalPage(){
 	if (physical_pages == NULL){
 		return NULL;
 	}
@@ -68,6 +71,7 @@ int freePhysicalPage(struct node * nodeIn) {
 }
 
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
+	actual_brk = orig_brk;
 	void (*ptr_to_kernel)(ExceptionStackFrame *);
 	ptr_to_kernel = &trapKernel;
 	ivt[TRAP_KERNEL] = ptr_to_kernel;
@@ -106,7 +110,6 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry->kprot = PROT_NONE;
 		entry->uprot = PROT_NONE;
 		entry->pfn = h;
-		printf("%d\n", entry->pfn);
 		page_table[h] = entry;
 	}
 	
@@ -118,8 +121,27 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		new_page->index = i;
 	}
 	
+	int num_text_pages = ((unsigned long) &_etext - PMEM_1_BASE) / PAGESIZE;
 	
+	int j;
 	
+	int kernel_page_base = PMEM_1_BASE / PAGESIZE;
+	
+	for (j = kernel_page_base; j < num_text_pages + kernel_page_base; j++){
+		page_table[j]->valid = 1;
+		page_table[j]->kprot = (PROT_READ | PROT_EXEC);
+		printf("j: %d\n", j);
+	} 
+	
+	int num_dbh_pages = ((unsigned long)(actual_brk - (void*) &_etext) / PAGESIZE);
+
+	int k;
+	
+	for (k = kernel_page_base + num_text_pages; k < kernel_page_base + num_text_pages + num_dbh_pages; k++){
+		page_table[k]->valid = 1;
+		page_table[k]->kprot = (PROT_READ | PROT_WRITE);
+		printf("k: %d\n", k);
+	}
 	
 	current_spot = (unsigned long) &_etext;
 
@@ -149,7 +171,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 int SetKernelBrk(void *addr){
 	printf("Brk\n");
 	TracePrintf(0,"kernel break");
-	_etext = (long)addr;
+	actual_brk = addr;
 	return 0;
 }
 
