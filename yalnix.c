@@ -11,6 +11,8 @@ void* ivt[TRAP_VECTOR_SIZE];
 
 struct node {
   void* base;
+  int isRemoved;
+  int index;
 };
 
 struct node** physical_pages;
@@ -45,24 +47,24 @@ void trapTtyTransmit(ExceptionStackFrame *frame){
 	Halt();
 }
 
-// void * allocPhysicalPage(){
-// 	if (physical_pages == NULL){
-// 		return NULL;
-// 	}
-// 	void * physicalPageAddr = physical_pages->base;
-// 	struct node * tempNode = physical_pages->nextNode;
-// 	free(physical_pages);
-// 	physical_pages = tempNode;
-// 	return physicalPageAddr;
-// }
+struct node * allocPhysicalPage(){
+	if (physical_pages == NULL){
+		return NULL;
+	}
+	int i;
+	for (i = 0; i < physical_pages_length; i++){
+		if (physical_pages[i]->isRemoved == 0){
+			physical_pages[i]->isRemoved = 1;
+			return physical_pages[i];
+		}
+	}
+	return NULL;
+}
 
-// int freePhysicalPage(void * addr) {
-// 	struct node* new_page = malloc(sizeof(struct node*));
-// 	new_page->nextNode = physical_pages;
-// 	new_page->base = addr;
-// 	physical_pages = new_page;
-// 	return 1;
-// }
+int freePhysicalPage(struct node * nodeIn) {
+	physical_pages[nodeIn->index]->isRemoved = 0;
+	return 1;
+}
 
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
 	void (*ptr_to_kernel)(ExceptionStackFrame *);
@@ -90,10 +92,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
 
 	unsigned long current_spot = (unsigned long) orig_brk;
-	printf("pmem_size %p\n", (void*)pmem_size);
-	printf("current spot %p\n", orig_brk);
 	int num_nodes = (current_spot) / PAGESIZE;
-	printf("numNodes %d\n", num_nodes);
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
 
 	int i;
@@ -101,23 +100,27 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	for (i = 0; i < num_nodes; i++) {
 		struct node* new_page = malloc(sizeof(struct node*));
 		physical_pages[i] = new_page;
+		new_page->index = i;
 	}
 
 	current_spot = (unsigned long) &_etext;
-	printf("current spot %p\n", (void*)current_spot);
 
 	int index = 0;
 	
 	// Only going one-direction
 	while (current_spot - PAGESIZE > 0) {
-		// printf("index %d\n", index);    
 		physical_pages[index]->base = (void*)current_spot;
-		// printf("base %d %p\n", index, physical_pages[index]->base);    
 		current_spot -= PAGESIZE;
 		index++;
 	}
-	printf("we out here\n");
 	physical_pages_length = index;
+
+
+	struct node *n = allocPhysicalPage();
+	int b = n->index;
+	printf("a %d\n", physical_pages[b]->isRemoved);
+	freePhysicalPage(n);
+	printf("b %d\n", physical_pages[b]->isRemoved);
 
 }
 
