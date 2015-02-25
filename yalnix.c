@@ -12,7 +12,7 @@ void* ivt[TRAP_VECTOR_SIZE];
 struct node {
   void* base;
   int isRemoved;
-  int index;
+  unsigned int pfn;
 };
 
 struct pte** page_table;
@@ -23,6 +23,7 @@ struct pte* region_1;
 
 struct node** physical_pages;
 int physical_pages_length;
+int num_free_pages;
 
 void* actual_brk;
 
@@ -55,22 +56,24 @@ void trapTtyTransmit(ExceptionStackFrame *frame){
 	Halt();
 }
 
-struct node* allocPhysicalPage(){
+unsigned int allocPhysicalPage(){
 	if (physical_pages == NULL){
-		return NULL;
+		return -1;
 	}
 	int i;
 	for (i = 0; i < physical_pages_length; i++){
 		if (physical_pages[i]->isRemoved == 0){
 			physical_pages[i]->isRemoved = 1;
-			return physical_pages[i];
+			num_free_pages--;
+			return physical_pages[i]->pfn;
 		}
 	}
-	return NULL;
+	return -1;
 }
 
-int freePhysicalPage(struct node * nodeIn) {
-	physical_pages[nodeIn->index]->isRemoved = 0;
+int freePhysicalPage(unsigned int pfn) {
+	physical_pages[fpfn]->isRemoved = 0;
+	num_free_pages++;
 	return 1;
 }
 
@@ -128,7 +131,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	for (i = 0; i < num_nodes; i++) {
 		struct node* new_page = malloc(sizeof(struct node*));
 		physical_pages[i] = new_page;
-		new_page->index = i;
+		new_page->pfn = i;
 	}
 
 	int k;
@@ -191,15 +194,16 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	current_spot = (unsigned long) &_etext;
 
-	int index = 0;
+	int pfn = 0;
 	
 	// Only going one-direction
 	while (current_spot - PAGESIZE > 0) {
-		physical_pages[index]->base = (void*)current_spot;
+		physical_pages[pfn]->base = (void*)current_spot;
 		current_spot -= PAGESIZE;
-		index++;
+		pfn++;
 	}
-	physical_pages_length = index;
+	physical_pages_length = pfn;
+	num_free_pages = physical_pages_length;
 
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
 	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
@@ -213,6 +217,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	int x = 1;
 	printf("WE STARTED!!!\n");
+
 }
 
 

@@ -26,7 +26,7 @@
 #	if you have a file named test1.c in this directory.
 #
 
-ALL = yalnix 
+ALL = yalnix idle
 #test1 test2 test3
 
 #
@@ -39,8 +39,8 @@ ALL = yalnix
 #KERNEL_OBJS = example1.o example2.o
 #KERNEL_SRCS = example1.c example2.c
 
-KERNEL_OBJS = yalnix.o
-KERNEL_SRCS = yalnix.c
+KERNEL_OBJS = yalnix.o 
+KERNEL_SRCS = yalnix.c 
 
 #
 #	You should not have to modify anything else in this Makefile
