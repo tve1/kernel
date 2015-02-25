@@ -116,7 +116,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	for (h = 0; h < num_ptes; h++){
 		struct pte * entry = malloc(sizeof(struct pte));
-		entry->valid = 0;
+		entry->valid = 1;
 		entry->kprot = PROT_NONE;
 		entry->uprot = PROT_NONE;
 		entry->pfn = h;
@@ -135,18 +135,24 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	for (k = 0; k < num_pages_region_0; k++) {
 		struct pte* entry = malloc(sizeof(struct pte));
-		entry->valid = 0;
+		entry->valid = 1;
 		entry->kprot = PROT_NONE;
 		entry->uprot = PROT_NONE;
 		entry->pfn = k;
 		region_0[k] = entry;
 	}
 
+	int a;
+
+	for (a = 0; a < MEM_INVALID_PAGES; a++) {
+		region_0[a]->valid = 0;
+		printf("a %d\n", a);
+	}
 	int m;
 
 	for (m = 0; m < num_pages_region_1; m++) {
 		struct pte* entry = malloc(sizeof(struct pte));
-		entry->valid = 0;
+		entry->valid = 1;
 		entry->kprot = PROT_NONE;
 		entry->uprot = PROT_NONE;
 		entry->pfn = m + num_pages_region_0;
@@ -190,7 +196,18 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	}
 	physical_pages_length = index;
 
+	WriteRegister(REG_PTR0, (RCS421RegVal) &region_0);
+	WriteRegister(REG_PTR1, (RCS421RegVal) &region_1);
 
+	int z;
+	for (z = 0; z < num_pages_region_0; z++) {
+		printf("%d, %d, %d\n", z, region_0[z]->pfn, region_0[z]->valid);
+	}
+	//ENABLING VIRTUAL MEMORY!!!!!
+	WriteRegister(REG_VM_ENABLE, 1);
+
+	int x = 1;
+	printf("%d\n", x);
 }
 
 

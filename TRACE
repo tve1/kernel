@@ -1,2 +1,2 @@
 
-ABORT: Virtual memory was not enabled by KernelStart!
+ABORT: EnableVM: PTE for kernel stack vpn 508 addr 0x1fc000 is not valid
