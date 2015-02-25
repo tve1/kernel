@@ -17,6 +17,10 @@ struct node {
 
 struct pte** page_table;
 
+struct pte** region_0;
+struct pte** region_1;
+
+
 struct node** physical_pages;
 int physical_pages_length;
 
@@ -102,6 +106,12 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
 	page_table = malloc(sizeof(struct pte *) * num_ptes);
 	
+	int num_pages_region_0 = (VMEM_0_LIMIT - VMEM_0_BASE ) / PAGESIZE;
+	region_0 = malloc(sizeof(struct pte*) * num_pages_region_0);
+
+	int num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
+	region_1 = malloc(sizeof(struct pte*) * num_pages_region_1);
+
 	int h;
 	
 	for (h = 0; h < num_ptes; h++){
@@ -120,6 +130,28 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		physical_pages[i] = new_page;
 		new_page->index = i;
 	}
+
+	int k;
+
+	for (k = 0; k < num_pages_region_0; k++) {
+		struct pte* entry = malloc(sizeof(struct pte));
+		entry->valid = 0;
+		entry->kprot = PROT_NONE;
+		entry->uprot = PROT_NONE;
+		entry->pfn = k;
+		region_0[k] = entry;
+	}
+
+	int m;
+
+	for (m = 0; m < num_pages_region_1; m++) {
+		struct pte* entry = malloc(sizeof(struct pte));
+		entry->valid = 0;
+		entry->kprot = PROT_NONE;
+		entry->uprot = PROT_NONE;
+		entry->pfn = m + num_pages_region_0;
+		region_1[m] = entry;
+	}
 	
 	int num_text_pages = ((unsigned long) &_etext - PMEM_1_BASE) / PAGESIZE;
 	
@@ -130,19 +162,22 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	for (j = kernel_page_base; j < num_text_pages + kernel_page_base; j++){
 		page_table[j]->valid = 1;
 		page_table[j]->kprot = (PROT_READ | PROT_EXEC);
-		printf("j: %d\n", j);
-	} 
+		region_1[j - kernel_page_base]->valid = 1;
+		region_1[j - kernel_page_base]->kprot = (PROT_READ | PROT_EXEC);
+	}
+
 	
 	int num_dbh_pages = ((unsigned long)(actual_brk - (void*) &_etext) / PAGESIZE);
 
-	int k;
+	int n;
 	
-	for (k = kernel_page_base + num_text_pages; k < kernel_page_base + num_text_pages + num_dbh_pages; k++){
-		page_table[k]->valid = 1;
-		page_table[k]->kprot = (PROT_READ | PROT_WRITE);
-		printf("k: %d\n", k);
+	for (n = kernel_page_base + num_text_pages; n < kernel_page_base + num_text_pages + num_dbh_pages; n++){
+		page_table[n]->valid = 1;
+		page_table[n]->kprot = (PROT_READ | PROT_WRITE);
+		region_1[n - kernel_page_base]->valid = 1;
+		region_1[n - kernel_page_base]->kprot = (PROT_READ | PROT_WRITE);
 	}
-	
+
 	current_spot = (unsigned long) &_etext;
 
 	int index = 0;
@@ -155,12 +190,6 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	}
 	physical_pages_length = index;
 
-
-	struct node *n = allocPhysicalPage();
-	int b = n->index;
-	printf("a %d\n", physical_pages[b]->isRemoved);
-	freePhysicalPage(n);
-	printf("b %d\n", physical_pages[b]->isRemoved);
 
 }
 
