@@ -17,8 +17,8 @@ struct node {
 
 struct pte** page_table;
 
-struct pte** region_0;
-struct pte** region_1;
+struct pte* region_0;
+struct pte* region_1;
 
 
 struct node** physical_pages;
@@ -107,10 +107,10 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	page_table = malloc(sizeof(struct pte *) * num_ptes);
 	
 	int num_pages_region_0 = (VMEM_0_LIMIT - VMEM_0_BASE ) / PAGESIZE;
-	region_0 = malloc(sizeof(struct pte*) * num_pages_region_0);
+	region_0 = malloc(sizeof(struct pte) * num_pages_region_0);
 
 	int num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
-	region_1 = malloc(sizeof(struct pte*) * num_pages_region_1);
+	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
 
 	int h;
 	
@@ -134,28 +134,28 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	int k;
 
 	for (k = 0; k < num_pages_region_0; k++) {
-		struct pte* entry = malloc(sizeof(struct pte));
-		entry->valid = 1;
-		entry->kprot = PROT_NONE;
-		entry->uprot = PROT_NONE;
-		entry->pfn = k;
+		struct pte entry;
+		entry.valid = 1;
+		entry.kprot = (PROT_READ | PROT_WRITE) ;
+		entry.uprot = (PROT_NONE);
+		entry.pfn = k;
 		region_0[k] = entry;
 	}
 
 	int a;
 
 	for (a = 0; a < MEM_INVALID_PAGES; a++) {
-		region_0[a]->valid = 0;
+		region_0[a].valid = 0;
 		printf("a %d\n", a);
 	}
 	int m;
 
 	for (m = 0; m < num_pages_region_1; m++) {
-		struct pte* entry = malloc(sizeof(struct pte));
-		entry->valid = 1;
-		entry->kprot = PROT_NONE;
-		entry->uprot = PROT_NONE;
-		entry->pfn = m + num_pages_region_0;
+		struct pte entry;
+		entry.valid = 1;
+		entry.kprot = PROT_NONE;
+		entry.uprot = PROT_NONE;
+		entry.pfn = m + num_pages_region_0;
 		region_1[m] = entry;
 	}
 	
@@ -168,8 +168,11 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	for (j = kernel_page_base; j < num_text_pages + kernel_page_base; j++){
 		page_table[j]->valid = 1;
 		page_table[j]->kprot = (PROT_READ | PROT_EXEC);
-		region_1[j - kernel_page_base]->valid = 1;
-		region_1[j - kernel_page_base]->kprot = (PROT_READ | PROT_EXEC);
+
+		struct pte entry = region_1[j - kernel_page_base];
+		entry.valid = 1;
+		entry.kprot = (PROT_READ | PROT_EXEC);
+		region_1[j - kernel_page_base] = entry;
 	}
 
 	
@@ -180,8 +183,10 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	for (n = kernel_page_base + num_text_pages; n < kernel_page_base + num_text_pages + num_dbh_pages; n++){
 		page_table[n]->valid = 1;
 		page_table[n]->kprot = (PROT_READ | PROT_WRITE);
-		region_1[n - kernel_page_base]->valid = 1;
-		region_1[n - kernel_page_base]->kprot = (PROT_READ | PROT_WRITE);
+		struct pte entry = region_1[n - kernel_page_base];
+		entry.valid = 1;
+		entry.kprot = (PROT_READ | PROT_WRITE);
+		region_1[n - kernel_page_base] = entry;
 	}
 
 	current_spot = (unsigned long) &_etext;
@@ -196,18 +201,18 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	}
 	physical_pages_length = index;
 
-	WriteRegister(REG_PTR0, (RCS421RegVal) &region_0);
-	WriteRegister(REG_PTR1, (RCS421RegVal) &region_1);
+	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
+	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
 
 	int z;
 	for (z = 0; z < num_pages_region_0; z++) {
-		printf("%d, %d, %d\n", z, region_0[z]->pfn, region_0[z]->valid);
+		printf("%d, %d, %d\n", z, region_0[z].pfn, region_0[z].valid);
 	}
 	//ENABLING VIRTUAL MEMORY!!!!!
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	int x = 1;
-	printf("%d\n", x);
+	printf("WE STARTED!!!\n");
 }
 
 

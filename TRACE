@@ -1,2 +1,2 @@
 
-ABORT: EnableVM: PTE for kernel stack vpn 508 addr 0x1fc000 is not valid
+ABORT: KernelStart returned with bogus frame pc of 0x1a!
