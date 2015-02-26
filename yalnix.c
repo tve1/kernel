@@ -14,10 +14,19 @@ void* ivt[TRAP_VECTOR_SIZE];
 int LoadProgram(char *name, char **args);
 
 struct node {
-  void* base;
-  int isRemoved;
-  unsigned int pfn;
+	void* base;
+	int isRemoved;
+	unsigned int pfn;
 };
+
+struct pcb {
+	SavedContext* ctxp;
+	void* region_0_addr;
+	int pid;
+	struct pcb* next;
+};
+
+struct pcb* idle_pcb;
 
 struct pte** page_table;
 
@@ -32,6 +41,8 @@ int physical_pages_length;
 int num_free_pages;
 
 void* actual_brk;
+
+int curr_pid;
 
 ExceptionStackFrame *kernel_frame;
 
@@ -83,6 +94,10 @@ int freePhysicalPage(unsigned int pfn) {
 	physical_pages[pfn]->isRemoved = 0;
 	num_free_pages++;
 	return 1;
+}
+
+int GetPid(){
+	return curr_pid;
 }
 
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
@@ -229,6 +244,13 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	// idleArgs[1] = NULL; 
 
 	LoadProgram("idle", idleArgs);
+	idle_pcb = malloc(sizeof(struct pcb));
+	idle_pcb->ctxp = NULL;
+	idle_pcb->region_0_addr = (void*) ReadRegister(REG_PTR0);
+	idle_pcb->pid = 0;
+	idle_pcb->next = NULL;
+	
+	curr_pid = idle_pcb->pid;
 	printf("Finished loading!!!!\n");
 }
 
