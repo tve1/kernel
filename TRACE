@@ -1,2 +1,10 @@
-
-ABORT: KernelStart returned with bogus frame pc of 0x1a!
+** Kernel   level 0 tracing enabled **
+Kernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   LoadProgram 'idle', args 0x21d2c0
+Kernel   LoadProgram: LoadInfo status 0
+Kernel   text_size 0x7000, data_size 0x130, bss_size 0x3098
+Kernel   entry 0x10100
+Kernel   LoadProgram: size 0, argcount 0
+Kernel   LoadProgram: text_npg 7, data_bss_npg 4, stack_npg 1
+Kernel   hiKernel   helloKernel   heyKernel   howdyKernel   yoKernel   supKernel   e
+Kernel   a
+Kernel   0 0x1fafd8 (nil)

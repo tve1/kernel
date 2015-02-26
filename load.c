@@ -1,9 +1,9 @@
->>>> THIS FILE IS ONLY A TEMPLATE FOR YOUR LoadProgram FUNCTION
+// >>>> THIS FILE IS ONLY A TEMPLATE FOR YOUR LoadProgram FUNCTION
 
->>>> You MUST edit each place marked by ">>>>" below to replace
->>>> the ">>>>" description with code for your kernel to implement the
->>>> behavior described.  You might also want to save the original
->>>> annotations as comments.
+// >>>> You MUST edit each place marked by ">>>>" below to replace
+// >>>> the ">>>>" description with code for your kernel to implement the
+// >>>> behavior described.  You might also want to save the original
+// >>>> annotations as comments.
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -12,7 +12,7 @@
 
 #include <comp421/hardware.h>
 #include <comp421/loadinfo.h>
-
+#include "yalnix.c"
 /*
  *  Load a program into the current process's address space.  The
  *  program comes from the Unix file identified by "name", and its
@@ -161,7 +161,7 @@ LoadProgram(char *name, char **args)
 
     // >>>> Initialize sp for the current process to (char *)cpp.
     // >>>> The value of cpp was initialized above.
-    WriteRegister(SP, (RCS421RegVal) cpp);
+    kernel_frame->sp = (void*) cpp;
 
     /*
      *  Free all the old physical memory belonging to this process,
@@ -174,14 +174,14 @@ LoadProgram(char *name, char **args)
     // >>>> any of these PTEs that are valid, free the physical memory
     // >>>> memory page indicated by that PTE's pfn field.  Set all
     // >>>> of these PTEs to be no longer valid.
-    int i;
-    for (i = 0; i < num_pages_region_0; i++){
-        if (i >= (KERNEL_STACK_BASE / PAGESIZE) && i < (KERNEL_STACK_LIMIT / PAGESIZE)){
+    int z;
+    for (z = 0; z < num_pages_region_0; z++){
+        if (z >= (KERNEL_STACK_BASE / PAGESIZE) && z < (KERNEL_STACK_LIMIT / PAGESIZE)){
             continue;
         }    
-        if (region_0[i].valid){
-            freePhysicalPages(region_0[i].pfn);
-            region_0[i].valid = 0;
+        if (region_0[z].valid){
+            freePhysicalPage(region_0[z].pfn);
+            region_0[z].valid = 0;
         } 
     }
 
@@ -311,7 +311,7 @@ LoadProgram(char *name, char **args)
      *  Set the entry point in the exception frame.
      */
     // >>>> Initialize pc for the current process to (void *)li.entry
-    WriteRegister(PC, (RCS421RegVal) li.entry);
+    kernel_frame->pc = li.entry;
 
     /*
      *  Now, finally, build the argument list on the new stack.
@@ -335,9 +335,15 @@ LoadProgram(char *name, char **args)
      *  value for the PSR will make the process run in user mode,
      *  since this PSR value of 0 does not have the PSR_MODE bit set.
      */
-    >>>> Initialize regs[0] through regs[NUM_REGS-1] for the
-    >>>> current process to 0.
-    >>>> Initialize psr for the current process to 0.
+    // >>>> Initialize regs[0] through regs[NUM_REGS-1] for the
+    // >>>> current process to 0.
+    // >>>> Initialize psr for the current process to 0.
+
+    int f;
+    for (f = 0; f < NUM_REGS; f++){
+        WriteRegister(kernel_frame->regs[f], 0);
+    }
+    WriteRegister(kernel_frame->psr, 0);     
 
     return (0);
 }
