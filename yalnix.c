@@ -564,48 +564,48 @@ LoadProgram(char *name, char **args)
     /*
      *  Now, finally, build the argument list on the new stack.
      */
-	TracePrintf(0,
-	    "0 %p %p\n", (char*) cpp, (char*) argcount);
-    *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
-	TracePrintf(0,
-	    "1\n");
-    // *cpp++
-    cp2 = argbuf;
-    for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
-		TracePrintf(0,
-	    "2\n");
-	*cpp++ = cp;
-		TracePrintf(0,
-	    "3\n");
+	// TracePrintf(0,
+	    // "0 %p %p\n", (char*) cpp, (char*) argcount);
+    // *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
+	// TracePrintf(0,
+	    // "1\n");
+    //*cpp++
+    // cp2 = argbuf;
+    // for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
+		// TracePrintf(0,
+	    // "2\n");
+	// *cpp++ = cp;
+		// TracePrintf(0,
+	    // "3\n");
 
-	strcpy(cp, cp2);
-	TracePrintf(0,
-	    "4\n");
-	cp += strlen(cp) + 1;
-		TracePrintf(0,
-	    "5\n");
+	// strcpy(cp, cp2);
+	// TracePrintf(0,
+	    // "4\n");
+	// cp += strlen(cp) + 1;
+		// TracePrintf(0,
+	    // "5\n");
 
-	cp2 += strlen(cp2) + 1;
-	TracePrintf(0,
-	    "6\n");
+	// cp2 += strlen(cp2) + 1;
+	// TracePrintf(0,
+	    // "6\n");
 
-    }
-    	TracePrintf(0,
-	    "7\n");
-	free(argbuf);
-	TracePrintf(0,
-	    "8\n");
+    // }
+    	// TracePrintf(0,
+	    // "7\n");
+	// free(argbuf);
+	// TracePrintf(0,
+	    // "8\n");
 
-    *cpp++ = NULL;	/* the last argv is a NULL pointer */
-    	TracePrintf(0,
-	    "9\n");
+    // *cpp++ = NULL;	/* the last argv is a NULL pointer */
+    	// TracePrintf(0,
+	    // "9\n");
 
-    *cpp++ = NULL;	/* a NULL pointer for an empty envp */
-	TracePrintf(0,
-	    "10\n");
-    *cpp++ = 0;		/* and terminate the auxiliary vector */
-	TracePrintf(0,
-	    "i bet this won't run\n");
+    // *cpp++ = NULL;	/* a NULL pointer for an empty envp */
+	// TracePrintf(0,
+	    // "10\n");
+    // *cpp++ = 0;		/* and terminate the auxiliary vector */
+	// TracePrintf(0,
+	    // "i bet this won't run\n");
 
     /*
      *  Initialize all regs[] registers for the current process to 0,
@@ -619,9 +619,9 @@ LoadProgram(char *name, char **args)
 
     int f;
     for (f = 0; f < NUM_REGS; f++){
-        WriteRegister(kernel_frame->regs[f], 0);
+        kernel_frame->regs[f] = 0;
     }
-    WriteRegister(kernel_frame->psr, 0);     
+    kernel_frame->psr = 0;     
 	TracePrintf(0,
 	    "f");
 
