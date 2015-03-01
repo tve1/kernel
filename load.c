@@ -12,7 +12,7 @@
 
 #include <comp421/hardware.h>
 #include <comp421/loadinfo.h>
-#include "yalnix.c"
+// #include "yalnix.c"
 /*
  *  Load a program into the current process's address space.  The
  *  program comes from the Unix file identified by "name", and its
@@ -120,8 +120,9 @@ LoadProgram(char *name, char **args)
     text_npg = li.text_size >> PAGESHIFT;
     data_bss_npg = UP_TO_PAGE(li.data_size + li.bss_size) >> PAGESHIFT;
     stack_npg = (USER_STACK_LIMIT - DOWN_TO_PAGE(cpp)) >> PAGESHIFT;
+    TracePrintf(0, "LoadProgram: User Stack Limit %d\n ", USER_STACK_LIMIT,
 
-    TracePrintf(0, "LoadProgram: text_npg %d, data_bss_npg %d, stack_npg %d\n",
+    TracePrintf(0, "LoadPraogram: text_npg %d, data_bss_npg %d, stack_npg %d\n",
 	text_npg, data_bss_npg, stack_npg);
 
     /*
@@ -135,8 +136,8 @@ LoadProgram(char *name, char **args)
 	close(fd);
 	return (-1);
     }
-
-    /*
+       
+    /*  
      *  And make sure there will be enough physical memory to
      *  load the new program.
      */
@@ -144,7 +145,7 @@ LoadProgram(char *name, char **args)
     // >>>> data_bss_npg pages of data/bss, and stack_npg pages of
     // >>>> stack.  In checking that there is enough free physical
     // >>>> memory for this, be sure to allow for the physical memory
-    // >>>> pages already allocated to this process that will be
+    // >>>> pages already al  located to this process that will be
     // >>>> freed below before we allocate the needed pages for
     // >>>> the new program being loaded.
 
@@ -312,7 +313,7 @@ LoadProgram(char *name, char **args)
      */
     // >>>> Initialize pc for the current process to (void *)li.entry
     kernel_frame->pc = li.entry;
-
+    TracePrintf(0, "starting pc is %p\n", kernel_frame->pc);
     /*
      *  Now, finally, build the argument list on the new stack.
      */

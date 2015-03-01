@@ -46,34 +46,23 @@ int curr_pid;
 
 ExceptionStackFrame *kernel_frame;
 
-void trapKernel(ExceptionStackFrame *frame){
+void trapKernel(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapKernel");
-	Halt();
-}
+	// Halt(); 
+} 
 void trapClock(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapClock");
-	Halt();
-}
-void trapIllegal(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapIllegal");
-	Halt();
-}
-void trapMemory(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapMemory");
-	Halt();
-}
+	TracePrintf(0,"trapClock"); 
+} void trapIllegal(ExceptionStackFrame *frame){
+TracePrintf(0, "trapIllegal");     Halt(); } void
+trapMemory(ExceptionStackFrame *frame){     
+	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->pc);
+	Halt(); 
+} 
 void trapMath(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapMath");
-	Halt();
-}
-void trapTtyReceive(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapTtyReceive");
-	Halt();
-}
-void trapTtyTransmit(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapTtyTransmit");
-	Halt();
-}
+TracePrintf(0, "trapMath");     Halt(); } void
+trapTtyReceive(ExceptionStackFrame *frame){     TracePrintf(0,
+"trapTtyReceive");     Halt(); } void trapTtyTransmit(ExceptionStackFrame
+*frame){     TracePrintf(0, "trapTtyTransmit");     Halt(); }
 
 unsigned int allocPhysicalPage(){
 	if (physical_pages == NULL){
@@ -84,6 +73,7 @@ unsigned int allocPhysicalPage(){
 		if (physical_pages[i]->isRemoved == 0){
 			physical_pages[i]->isRemoved = 1;
 			num_free_pages--;
+			TracePrintf(1, "Allocing ppage %p\n", physical_pages[i]->pfn);
 			return physical_pages[i]->pfn;
 		}
 	}
@@ -91,6 +81,7 @@ unsigned int allocPhysicalPage(){
 }
 
 int freePhysicalPage(unsigned int pfn) {
+				TracePrintf(1, "Free page %p\n", pfn);
 	physical_pages[pfn]->isRemoved = 0;
 	num_free_pages++;
 	return 1;
@@ -140,6 +131,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
 	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
 
+	char** idleArgs = malloc(sizeof(char*));
+	idle_pcb = malloc(sizeof(struct pcb));
 	int h;
 	
 	for (h = 0; h < num_ptes; h++){
@@ -235,16 +228,15 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	//ENABLING VIRTUAL MEMORY!!!!!
 	WriteRegister(REG_VM_ENABLE, 1);
-
+TracePrintf(0,
+	    "Virtual memory enabled\n");
 	printf("WE STARTED!!!\n");
 	
 	printf("Loading idle...\n");
-	char** idleArgs = malloc(sizeof(char*));
 	idleArgs[0] = NULL; 
 	// idleArgs[1] = NULL; 
 
 	LoadProgram("idle", idleArgs);
-	idle_pcb = malloc(sizeof(struct pcb));
 	idle_pcb->ctxp = NULL;
 	idle_pcb->region_0_addr = (void*) ReadRegister(REG_PTR0);
 	idle_pcb->pid = 0;
@@ -252,6 +244,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	curr_pid = idle_pcb->pid;
 	printf("Finished loading!!!!\n");
+	TracePrintf(0, "PC starts at %p\n", frame->pc);
+
 }
 
 
@@ -260,7 +254,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 int SetKernelBrk(void *addr){
 	printf("Brk\n");
-	TracePrintf(0,"kernel break");
+	TracePrintf(0,"kernel break\n");
 	actual_brk = addr;
 	return 0;
 }
@@ -516,9 +510,9 @@ LoadProgram(char *name, char **args)
     // >>>>     kprot = PROT_READ | PROT_WRITE
     // >>>>     uprot = PROT_READ | PROT_WRITE
     // >>>>     pfn   = a new page of physical memory
-
+	int user_stack_page = USER_STACK_LIMIT/PAGESIZE;
     int d;
-    for (d = bottom; d < top; d++){
+    for (d = user_stack_page - stack_npg; d < user_stack_page; d++){
         region_0[d].valid = 1;
         region_0[d].kprot = PROT_READ | PROT_WRITE;
         region_0[d].uprot = PROT_READ | PROT_WRITE;
@@ -580,9 +574,7 @@ LoadProgram(char *name, char **args)
      */
     // >>>> Initialize pc for the current process to (void *)li.entry
     kernel_frame->pc = li.entry;
-	TracePrintf(0,
-	    "a\n");
-
+	    TracePrintf(0, "starting pc is %p\n", kernel_frame->pc);
     /*
      *  Now, finally, build the argument list on the new stack.
      */

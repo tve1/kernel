@@ -1,10 +1,23 @@
 ** Kernel   level 0 tracing enabled **
-Kernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   kernel breakKernel   LoadProgram 'idle', args 0x21d2c0
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   kernel break
+Kernel   Virtual memory enabled
+Kernel   LoadProgram 'idle', args 0x20d128
 Kernel   LoadProgram: LoadInfo status 0
 Kernel   text_size 0x7000, data_size 0x130, bss_size 0x3098
 Kernel   entry 0x10100
 Kernel   LoadProgram: size 0, argcount 0
 Kernel   LoadProgram: text_npg 7, data_bss_npg 4, stack_npg 1
 Kernel   hiKernel   helloKernel   heyKernel   howdyKernel   yoKernel   supKernel   e
-Kernel   a
-Kernel   fKernel   trapMemory
+Kernel   starting pc is 0x10100
+Kernel   fKernel   PC starts at 0x10100
+Kernel   trapKernelKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClockKernel   trapClock
