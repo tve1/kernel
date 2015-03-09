@@ -521,56 +521,526 @@ Kernel   Allocing ppage 0x8
 Kernel   Allocing ppage 0x9
 Kernel   Allocing ppage 0xa
 Kernel   yoKernel   Allocing ppage 0xb
-Kernel   supKernel   e
+Kernel   flushing 0x5 0xfffffffffffffffe
+Kernel   flushed
+Kernel   ez
+Kernel   e
 Kernel   starting pc is 0x10100
-Kernel   fKernel   PC starts at 0x10100
+Kernel   fKernel   LoadProgram 'idle', args 0x20d128
+Kernel   LoadProgram: LoadInfo status 0
+Kernel   text_size 0x7000, data_size 0x128, bss_size 0x3090
+Kernel   entry 0x10100
+Kernel   LoadProgram: size 0, argcount 0
+Kernel   LoadProgram: text_npg 7, data_bss_npg 4, stack_npg 1
+Kernel   hiKernel   Free page 0x210
+Kernel   Free page 0x211
+Kernel   Free page 0x212
+Kernel   Free page 0x213
+Kernel   Free page 0x214
+Kernel   Free page 0x215
+Kernel   Free page 0x216
+Kernel   Free page 0x217
+Kernel   Free page 0x218
+Kernel   Free page 0x219
+Kernel   Free page 0x21a
+Kernel   Free page 0x21b
+Kernel   Free page 0x21c
+Kernel   Free page 0x21d
+Kernel   Free page 0x21e
+Kernel   Free page 0x21f
+Kernel   Free page 0x220
+Kernel   Free page 0x221
+Kernel   Free page 0x222
+Kernel   Free page 0x223
+Kernel   Free page 0x224
+Kernel   Free page 0x225
+Kernel   Free page 0x226
+Kernel   Free page 0x227
+Kernel   Free page 0x228
+Kernel   Free page 0x229
+Kernel   Free page 0x22a
+Kernel   Free page 0x22b
+Kernel   Free page 0x22c
+Kernel   Free page 0x22d
+Kernel   Free page 0x22e
+Kernel   Free page 0x22f
+Kernel   Free page 0x230
+Kernel   Free page 0x231
+Kernel   Free page 0x232
+Kernel   Free page 0x233
+Kernel   Free page 0x234
+Kernel   Free page 0x235
+Kernel   Free page 0x236
+Kernel   Free page 0x237
+Kernel   Free page 0x238
+Kernel   Free page 0x239
+Kernel   Free page 0x23a
+Kernel   Free page 0x23b
+Kernel   Free page 0x23c
+Kernel   Free page 0x23d
+Kernel   Free page 0x23e
+Kernel   Free page 0x23f
+Kernel   Free page 0x240
+Kernel   Free page 0x241
+Kernel   Free page 0x242
+Kernel   Free page 0x243
+Kernel   Free page 0x244
+Kernel   Free page 0x245
+Kernel   Free page 0x246
+Kernel   Free page 0x247
+Kernel   Free page 0x248
+Kernel   Free page 0x249
+Kernel   Free page 0x24a
+Kernel   Free page 0x24b
+Kernel   Free page 0x24c
+Kernel   Free page 0x24d
+Kernel   Free page 0x24e
+Kernel   Free page 0x24f
+Kernel   Free page 0x250
+Kernel   Free page 0x251
+Kernel   Free page 0x252
+Kernel   Free page 0x253
+Kernel   Free page 0x254
+Kernel   Free page 0x255
+Kernel   Free page 0x256
+Kernel   Free page 0x257
+Kernel   Free page 0x258
+Kernel   Free page 0x259
+Kernel   Free page 0x25a
+Kernel   Free page 0x25b
+Kernel   Free page 0x25c
+Kernel   Free page 0x25d
+Kernel   Free page 0x25e
+Kernel   Free page 0x25f
+Kernel   Free page 0x260
+Kernel   Free page 0x261
+Kernel   Free page 0x262
+Kernel   Free page 0x263
+Kernel   Free page 0x264
+Kernel   Free page 0x265
+Kernel   Free page 0x266
+Kernel   Free page 0x267
+Kernel   Free page 0x268
+Kernel   Free page 0x269
+Kernel   Free page 0x26a
+Kernel   Free page 0x26b
+Kernel   Free page 0x26c
+Kernel   Free page 0x26d
+Kernel   Free page 0x26e
+Kernel   Free page 0x26f
+Kernel   Free page 0x270
+Kernel   Free page 0x271
+Kernel   Free page 0x272
+Kernel   Free page 0x273
+Kernel   Free page 0x274
+Kernel   Free page 0x275
+Kernel   Free page 0x276
+Kernel   Free page 0x277
+Kernel   Free page 0x278
+Kernel   Free page 0x279
+Kernel   Free page 0x27a
+Kernel   Free page 0x27b
+Kernel   Free page 0x27c
+Kernel   Free page 0x27d
+Kernel   Free page 0x27e
+Kernel   Free page 0x27f
+Kernel   Free page 0x280
+Kernel   Free page 0x281
+Kernel   Free page 0x282
+Kernel   Free page 0x283
+Kernel   Free page 0x284
+Kernel   Free page 0x285
+Kernel   Free page 0x286
+Kernel   Free page 0x287
+Kernel   Free page 0x288
+Kernel   Free page 0x289
+Kernel   Free page 0x28a
+Kernel   Free page 0x28b
+Kernel   Free page 0x28c
+Kernel   Free page 0x28d
+Kernel   Free page 0x28e
+Kernel   Free page 0x28f
+Kernel   Free page 0x290
+Kernel   Free page 0x291
+Kernel   Free page 0x292
+Kernel   Free page 0x293
+Kernel   Free page 0x294
+Kernel   Free page 0x295
+Kernel   Free page 0x296
+Kernel   Free page 0x297
+Kernel   Free page 0x298
+Kernel   Free page 0x299
+Kernel   Free page 0x29a
+Kernel   Free page 0x29b
+Kernel   Free page 0x29c
+Kernel   Free page 0x29d
+Kernel   Free page 0x29e
+Kernel   Free page 0x29f
+Kernel   Free page 0x2a0
+Kernel   Free page 0x2a1
+Kernel   Free page 0x2a2
+Kernel   Free page 0x2a3
+Kernel   Free page 0x2a4
+Kernel   Free page 0x2a5
+Kernel   Free page 0x2a6
+Kernel   Free page 0x2a7
+Kernel   Free page 0x2a8
+Kernel   Free page 0x2a9
+Kernel   Free page 0x2aa
+Kernel   Free page 0x2ab
+Kernel   Free page 0x2ac
+Kernel   Free page 0x2ad
+Kernel   Free page 0x2ae
+Kernel   Free page 0x2af
+Kernel   Free page 0x2b0
+Kernel   Free page 0x2b1
+Kernel   Free page 0x2b2
+Kernel   Free page 0x2b3
+Kernel   Free page 0x2b4
+Kernel   Free page 0x2b5
+Kernel   Free page 0x2b6
+Kernel   Free page 0x2b7
+Kernel   Free page 0x2b8
+Kernel   Free page 0x2b9
+Kernel   Free page 0x2ba
+Kernel   Free page 0x2bb
+Kernel   Free page 0x2bc
+Kernel   Free page 0x2bd
+Kernel   Free page 0x2be
+Kernel   Free page 0x2bf
+Kernel   Free page 0x2c0
+Kernel   Free page 0x2c1
+Kernel   Free page 0x2c2
+Kernel   Free page 0x2c3
+Kernel   Free page 0x2c4
+Kernel   Free page 0x2c5
+Kernel   Free page 0x2c6
+Kernel   Free page 0x2c7
+Kernel   Free page 0x2c8
+Kernel   Free page 0x2c9
+Kernel   Free page 0x2ca
+Kernel   Free page 0x2cb
+Kernel   Free page 0x2cc
+Kernel   Free page 0x2cd
+Kernel   Free page 0x2ce
+Kernel   Free page 0x2cf
+Kernel   Free page 0x2d0
+Kernel   Free page 0x2d1
+Kernel   Free page 0x2d2
+Kernel   Free page 0x2d3
+Kernel   Free page 0x2d4
+Kernel   Free page 0x2d5
+Kernel   Free page 0x2d6
+Kernel   Free page 0x2d7
+Kernel   Free page 0x2d8
+Kernel   Free page 0x2d9
+Kernel   Free page 0x2da
+Kernel   Free page 0x2db
+Kernel   Free page 0x2dc
+Kernel   Free page 0x2dd
+Kernel   Free page 0x2de
+Kernel   Free page 0x2df
+Kernel   Free page 0x2e0
+Kernel   Free page 0x2e1
+Kernel   Free page 0x2e2
+Kernel   Free page 0x2e3
+Kernel   Free page 0x2e4
+Kernel   Free page 0x2e5
+Kernel   Free page 0x2e6
+Kernel   Free page 0x2e7
+Kernel   Free page 0x2e8
+Kernel   Free page 0x2e9
+Kernel   Free page 0x2ea
+Kernel   Free page 0x2eb
+Kernel   Free page 0x2ec
+Kernel   Free page 0x2ed
+Kernel   Free page 0x2ee
+Kernel   Free page 0x2ef
+Kernel   Free page 0x2f0
+Kernel   Free page 0x2f1
+Kernel   Free page 0x2f2
+Kernel   Free page 0x2f3
+Kernel   Free page 0x2f4
+Kernel   Free page 0x2f5
+Kernel   Free page 0x2f6
+Kernel   Free page 0x2f7
+Kernel   Free page 0x2f8
+Kernel   Free page 0x2f9
+Kernel   Free page 0x2fa
+Kernel   Free page 0x2fb
+Kernel   Free page 0x2fc
+Kernel   Free page 0x2fd
+Kernel   Free page 0x2fe
+Kernel   Free page 0x2ff
+Kernel   Free page 0x300
+Kernel   Free page 0x301
+Kernel   Free page 0x302
+Kernel   Free page 0x303
+Kernel   Free page 0x304
+Kernel   Free page 0x305
+Kernel   Free page 0x306
+Kernel   Free page 0x307
+Kernel   Free page 0x308
+Kernel   Free page 0x309
+Kernel   Free page 0x30a
+Kernel   Free page 0x30b
+Kernel   Free page 0x30c
+Kernel   Free page 0x30d
+Kernel   Free page 0x30e
+Kernel   Free page 0x30f
+Kernel   Free page 0x310
+Kernel   Free page 0x311
+Kernel   Free page 0x312
+Kernel   Free page 0x313
+Kernel   Free page 0x314
+Kernel   Free page 0x315
+Kernel   Free page 0x316
+Kernel   Free page 0x317
+Kernel   Free page 0x318
+Kernel   Free page 0x319
+Kernel   Free page 0x31a
+Kernel   Free page 0x31b
+Kernel   Free page 0x31c
+Kernel   Free page 0x31d
+Kernel   Free page 0x31e
+Kernel   Free page 0x31f
+Kernel   Free page 0x320
+Kernel   Free page 0x321
+Kernel   Free page 0x322
+Kernel   Free page 0x323
+Kernel   Free page 0x324
+Kernel   Free page 0x325
+Kernel   Free page 0x326
+Kernel   Free page 0x327
+Kernel   Free page 0x328
+Kernel   Free page 0x329
+Kernel   Free page 0x32a
+Kernel   Free page 0x32b
+Kernel   Free page 0x32c
+Kernel   Free page 0x32d
+Kernel   Free page 0x32e
+Kernel   Free page 0x32f
+Kernel   Free page 0x330
+Kernel   Free page 0x331
+Kernel   Free page 0x332
+Kernel   Free page 0x333
+Kernel   Free page 0x334
+Kernel   Free page 0x335
+Kernel   Free page 0x336
+Kernel   Free page 0x337
+Kernel   Free page 0x338
+Kernel   Free page 0x339
+Kernel   Free page 0x33a
+Kernel   Free page 0x33b
+Kernel   Free page 0x33c
+Kernel   Free page 0x33d
+Kernel   Free page 0x33e
+Kernel   Free page 0x33f
+Kernel   Free page 0x340
+Kernel   Free page 0x341
+Kernel   Free page 0x342
+Kernel   Free page 0x343
+Kernel   Free page 0x344
+Kernel   Free page 0x345
+Kernel   Free page 0x346
+Kernel   Free page 0x347
+Kernel   Free page 0x348
+Kernel   Free page 0x349
+Kernel   Free page 0x34a
+Kernel   Free page 0x34b
+Kernel   Free page 0x34c
+Kernel   Free page 0x34d
+Kernel   Free page 0x34e
+Kernel   Free page 0x34f
+Kernel   Free page 0x350
+Kernel   Free page 0x351
+Kernel   Free page 0x352
+Kernel   Free page 0x353
+Kernel   Free page 0x354
+Kernel   Free page 0x355
+Kernel   Free page 0x356
+Kernel   Free page 0x357
+Kernel   Free page 0x358
+Kernel   Free page 0x359
+Kernel   Free page 0x35a
+Kernel   Free page 0x35b
+Kernel   Free page 0x35c
+Kernel   Free page 0x35d
+Kernel   Free page 0x35e
+Kernel   Free page 0x35f
+Kernel   Free page 0x360
+Kernel   Free page 0x361
+Kernel   Free page 0x362
+Kernel   Free page 0x363
+Kernel   Free page 0x364
+Kernel   Free page 0x365
+Kernel   Free page 0x366
+Kernel   Free page 0x367
+Kernel   Free page 0x368
+Kernel   Free page 0x369
+Kernel   Free page 0x36a
+Kernel   Free page 0x36b
+Kernel   Free page 0x36c
+Kernel   Free page 0x36d
+Kernel   Free page 0x36e
+Kernel   Free page 0x36f
+Kernel   Free page 0x370
+Kernel   Free page 0x371
+Kernel   Free page 0x372
+Kernel   Free page 0x373
+Kernel   Free page 0x374
+Kernel   Free page 0x375
+Kernel   Free page 0x376
+Kernel   Free page 0x377
+Kernel   Free page 0x378
+Kernel   Free page 0x379
+Kernel   Free page 0x37a
+Kernel   Free page 0x37b
+Kernel   Free page 0x37c
+Kernel   Free page 0x37d
+Kernel   Free page 0x37e
+Kernel   Free page 0x37f
+Kernel   Free page 0x380
+Kernel   Free page 0x381
+Kernel   Free page 0x382
+Kernel   Free page 0x383
+Kernel   Free page 0x384
+Kernel   Free page 0x385
+Kernel   Free page 0x386
+Kernel   Free page 0x387
+Kernel   Free page 0x388
+Kernel   Free page 0x389
+Kernel   Free page 0x38a
+Kernel   Free page 0x38b
+Kernel   Free page 0x38c
+Kernel   Free page 0x38d
+Kernel   Free page 0x38e
+Kernel   Free page 0x38f
+Kernel   Free page 0x390
+Kernel   Free page 0x391
+Kernel   Free page 0x392
+Kernel   Free page 0x393
+Kernel   Free page 0x394
+Kernel   Free page 0x395
+Kernel   Free page 0x396
+Kernel   Free page 0x397
+Kernel   Free page 0x398
+Kernel   Free page 0x399
+Kernel   Free page 0x39a
+Kernel   Free page 0x39b
+Kernel   Free page 0x39c
+Kernel   Free page 0x39d
+Kernel   Free page 0x39e
+Kernel   Free page 0x39f
+Kernel   Free page 0x3a0
+Kernel   Free page 0x3a1
+Kernel   Free page 0x3a2
+Kernel   Free page 0x3a3
+Kernel   Free page 0x3a4
+Kernel   Free page 0x3a5
+Kernel   Free page 0x3a6
+Kernel   Free page 0x3a7
+Kernel   Free page 0x3a8
+Kernel   Free page 0x3a9
+Kernel   Free page 0x3aa
+Kernel   Free page 0x3ab
+Kernel   Free page 0x3ac
+Kernel   Free page 0x3ad
+Kernel   Free page 0x3ae
+Kernel   Free page 0x3af
+Kernel   Free page 0x3b0
+Kernel   Free page 0x3b1
+Kernel   Free page 0x3b2
+Kernel   Free page 0x3b3
+Kernel   Free page 0x3b4
+Kernel   Free page 0x3b5
+Kernel   Free page 0x3b6
+Kernel   Free page 0x3b7
+Kernel   Free page 0x3b8
+Kernel   Free page 0x3b9
+Kernel   Free page 0x3ba
+Kernel   Free page 0x3bb
+Kernel   Free page 0x3bc
+Kernel   Free page 0x3bd
+Kernel   Free page 0x3be
+Kernel   Free page 0x3bf
+Kernel   Free page 0x3c0
+Kernel   Free page 0x3c1
+Kernel   Free page 0x3c2
+Kernel   Free page 0x3c3
+Kernel   Free page 0x3c4
+Kernel   Free page 0x3c5
+Kernel   Free page 0x3c6
+Kernel   Free page 0x3c7
+Kernel   Free page 0x3c8
+Kernel   Free page 0x3c9
+Kernel   Free page 0x3ca
+Kernel   Free page 0x3cb
+Kernel   Free page 0x3cc
+Kernel   Free page 0x3cd
+Kernel   Free page 0x3ce
+Kernel   Free page 0x3cf
+Kernel   Free page 0x3d0
+Kernel   Free page 0x3d1
+Kernel   Free page 0x3d2
+Kernel   Free page 0x3d3
+Kernel   Free page 0x3d4
+Kernel   Free page 0x3d5
+Kernel   Free page 0x3d6
+Kernel   Free page 0x3d7
+Kernel   Free page 0x3d8
+Kernel   Free page 0x3d9
+Kernel   Free page 0x3da
+Kernel   Free page 0x3db
+Kernel   Free page 0x3dc
+Kernel   Free page 0x3dd
+Kernel   Free page 0x3de
+Kernel   Free page 0x3df
+Kernel   Free page 0x3e0
+Kernel   Free page 0x3e1
+Kernel   Free page 0x3e2
+Kernel   Free page 0x3e3
+Kernel   Free page 0x3e4
+Kernel   Free page 0x3e5
+Kernel   Free page 0x3e6
+Kernel   Free page 0x3e7
+Kernel   Free page 0x3e8
+Kernel   Free page 0x3e9
+Kernel   Free page 0x3ea
+Kernel   Free page 0x3eb
+Kernel   Free page 0x3ec
+Kernel   Free page 0x3ed
+Kernel   Free page 0x3ee
+Kernel   Free page 0x3ef
+Kernel   Free page 0x3f0
+Kernel   Free page 0x3f1
+Kernel   Free page 0x3f2
+Kernel   Free page 0x3f3
+Kernel   Free page 0x3f4
+Kernel   Free page 0x3f5
+Kernel   Free page 0x3f6
+Kernel   Free page 0x3f7
+Kernel   Free page 0x3f8
+Kernel   Free page 0x3f9
+Kernel   Free page 0x3fa
+Kernel   Free page 0x3fb
+Kernel   helloKernel   heyKernel   Allocing ppage 0xc
+Kernel   Allocing ppage 0xd
+Kernel   Allocing ppage 0xe
+Kernel   Allocing ppage 0xf
+Kernel   Allocing ppage 0x10
+Kernel   Allocing ppage 0x11
+Kernel   Allocing ppage 0x12
+Kernel   howdyKernel   Allocing ppage 0x13
+Kernel   Allocing ppage 0x14
+Kernel   Allocing ppage 0x15
+Kernel   Allocing ppage 0x16
+Kernel   yoKernel   Allocing ppage 0x17
+Kernel   flushing 0x5 0xfffffffffffffffe
+Kernel   flushed
+Kernel   LoadProgram: couldn't read for 'idle'
+Kernel   PC starts at 0x10100
 Kernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
 Kernel   trapClockKernel   trapKernel
 Kernel   trapClockKernel   trapKernel
 Kernel   trapClockKernel   trapKernel

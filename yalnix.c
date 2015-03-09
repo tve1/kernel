@@ -27,6 +27,7 @@ struct pcb {
 };
 
 struct pcb* idle_pcb;
+struct pcb* init_pcb;
 
 struct pte** page_table;
 
@@ -45,9 +46,6 @@ void* actual_brk;
 int curr_pid;
 
 ExceptionStackFrame *kernel_frame;
-int GetPid(){
-	return idle_pcb->pid;
-}
 
 void trapKernel(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapKernel\n");
@@ -57,22 +55,35 @@ void trapKernel(ExceptionStackFrame *frame){
 		frame->regs[0] = GetPid();
 	}
 	
-	// Halt(); 
 } 
 
 void trapClock(ExceptionStackFrame *frame){
 	TracePrintf(0,"trapClock"); 
-} void trapIllegal(ExceptionStackFrame *frame){
-TracePrintf(0, "trapIllegal");     Halt(); } void
-trapMemory(ExceptionStackFrame *frame){     
+} 
+
+void trapIllegal(ExceptionStackFrame *frame){
+	TracePrintf(0, "trapIllegal");     Halt(); 
+} 
+
+void trapMemory(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->pc);
 	Halt(); 
 } 
+
 void trapMath(ExceptionStackFrame *frame){
-TracePrintf(0, "trapMath");     Halt(); } void
-trapTtyReceive(ExceptionStackFrame *frame){     TracePrintf(0,
-"trapTtyReceive");     Halt(); } void trapTtyTransmit(ExceptionStackFrame
-*frame){     TracePrintf(0, "trapTtyTransmit");     Halt(); }
+	TracePrintf(0, "trapMath");     
+	Halt(); 
+} 
+
+void trapTtyReceive(ExceptionStackFrame *frame) {     
+	TracePrintf(0, "trapTtyReceive");     
+	Halt(); 
+} 
+
+void trapTtyTransmit(ExceptionStackFrame *frame) {     
+	TracePrintf(0, "trapTtyTransmit");     
+	Halt(); 
+}
 
 unsigned int allocPhysicalPage(){
 	if (physical_pages == NULL){
@@ -96,6 +107,11 @@ int freePhysicalPage(unsigned int pfn) {
 	num_free_pages++;
 	return 1;
 }
+
+int GetPid(){
+	return curr_pid;
+}
+
 
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
 	actual_brk = orig_brk;
@@ -125,7 +141,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
 
-	unsigned long current_spot = (unsigned long) orig_brk;
+	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
 	int num_nodes = (current_spot) / PAGESIZE;
 	int num_ptes = (pmem_size - PMEM_BASE) / PAGESIZE;
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
@@ -133,12 +149,15 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	num_pages_region_0 = (VMEM_0_LIMIT - VMEM_0_BASE ) / PAGESIZE;
 	region_0 = malloc(sizeof(struct pte) * num_pages_region_0);
+	struct pte* region_0_init = malloc(sizeof(struct pte) * num_pages_region_0);
 
 	num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
 	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
 
 	char** idleArgs = malloc(sizeof(char*));
 	idle_pcb = malloc(sizeof(struct pcb));
+	init_pcb = malloc(sizeof(struct pcb));
+
 	int h;
 	
 	for (h = 0; h < num_ptes; h++){
@@ -167,13 +186,21 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry.uprot = (PROT_NONE);
 		entry.pfn = k;
 		region_0[k] = entry;
+
+		struct pte entry_init;
+		entry_init.valid = 1;
+		entry_init.kprot = (PROT_READ | PROT_WRITE) ;
+		entry_init.uprot = (PROT_NONE);
+		entry_init.pfn = k + num_pages_region_0;
+		region_0_init[k] = entry_init;
 	}
 
 	int a;
 
 	for (a = 0; a < MEM_INVALID_PAGES; a++) {
 		region_0[a].valid = 0;
-		printf("a %d\n", a);
+		region_0_init[a].valid = 0;
+
 	}
 	int m;
 
@@ -216,18 +243,20 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		region_1[n - kernel_page_base] = entry;
 	}
 
-	current_spot = (unsigned long) &_etext;
+	current_spot = (unsigned long) 0;
 
 	int pfn = 0;
 	
 	// Only going one-direction
-	while (current_spot - PAGESIZE > 0) {
+	while (pfn < num_nodes) {
 		physical_pages[pfn]->base = (void*)current_spot;
-		current_spot -= PAGESIZE;
+		current_spot += PAGESIZE;
 		pfn++;
 	}
 	physical_pages_length = pfn;
 	num_free_pages = physical_pages_length;
+	printf("pfn %p\n", (void*)pfn);
+	printf("length %p\n", (void*)physical_pages_length);
 
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
 	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
@@ -247,8 +276,21 @@ TracePrintf(0,
 	idle_pcb->region_0_addr = (void*) ReadRegister(REG_PTR0);
 	idle_pcb->pid = 0;
 	idle_pcb->next = NULL;
-	
+
 	curr_pid = idle_pcb->pid;
+	printf("Loading init...\n");
+
+	region_0 = region_0_init;
+
+	// WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
+	
+	LoadProgram("idle", idleArgs);
+	init_pcb->ctxp = NULL;
+	init_pcb->region_0_addr = (void*) ReadRegister(REG_PTR0);
+	init_pcb->pid = 1;
+	init_pcb->next = NULL;
+
 	printf("curpid %d\n", curr_pid);
 	printf("Finished loading!!!!\n");
 	TracePrintf(0, "PC starts at %p\n", frame->pc);
@@ -330,6 +372,7 @@ LoadProgram(char *name, char **args)
 	    return (-1);
     }
     TracePrintf(0, "text_size 0x%lx, data_size 0x%lx, bss_size 0x%lx\n",
+
 	li.text_size, li.data_size, li.bss_size);
     TracePrintf(0, "entry 0x%lx\n", li.entry);
 
@@ -441,7 +484,7 @@ LoadProgram(char *name, char **args)
     }
 	TracePrintf(0,
 	    "hello");
-
+    
     /*
      *  Fill in the page table with the right number of text,
      *  data+bss, and stack pages.  We set all the text pages
@@ -527,15 +570,17 @@ LoadProgram(char *name, char **args)
     }
 
 	TracePrintf(0,
-	    "sup");
+	    "flushing %p %p\n", (void*) REG_TLB_FLUSH, (void*) TLB_FLUSH_0);
 
     /*
      *  All pages for the new address space are now in place.  Flush
      *  the TLB to get rid of all the old PTEs from this process, so
      *  we'll be able to do the read() into the new pages below.
      */
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+TracePrintf(0,
+	    "flushed\n");
     /*
      *  Read the text and data from the file into memory.
      */
@@ -545,7 +590,7 @@ LoadProgram(char *name, char **args)
 	free(argbuf);
 	close(fd);
 	// >>>> Since we are returning -2 here, this should mean to
-	// >>>> the rest of the kernel that the current process should
+	// >>>> the rest of the kernel that the current process shouldz
 	// >>>> be terminated with an exit status of ERROR reported
 	// >>>> to its parent process.
     //come back to it later????
@@ -560,6 +605,8 @@ LoadProgram(char *name, char **args)
      */
     // >>>> For text_npg number of PTEs corresponding to the user text
     // >>>> pages, set each PTE's kprot to PROT_READ | PROT_EXEC.
+	TracePrintf(0,
+	    "ez\n");
 
     int e;
     for (e = MEM_INVALID_PAGES; e < MEM_INVALID_PAGES + text_npg; e++){
