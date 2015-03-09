@@ -24,6 +24,7 @@ struct pcb {
 	void* region_0_addr;
 	int pid;
 	struct pcb* next;
+
 };
 
 struct pcb* idle_pcb;
@@ -43,9 +44,24 @@ int num_free_pages;
 
 void* actual_brk;
 
-int curr_pid;
+struct pcb* cur_pcb;
 
 ExceptionStackFrame *kernel_frame;
+
+SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
+	struct pcb* pcb1 = (struct pcb*) p1;
+	struct pcb* pcb2 = (struct pcb*) p2;
+
+	printf("Perfroming a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
+	pcb1->ctxp = ctxp;
+	
+  	WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+	WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
+	
+	cur_pcb = pcb2;
+
+	return cur_pcb->ctxp;
+}
 
 void trapKernel(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapKernel\n");
@@ -59,10 +75,17 @@ void trapKernel(ExceptionStackFrame *frame){
 
 void trapClock(ExceptionStackFrame *frame){
 	TracePrintf(0,"trapClock"); 
-} 
+// TODO: Do every 2 ticks
+	
+	printf("cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, cur_pcb->next->pid);
+	int ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)cur_pcb->next);
+	printf("Switch %d\n", ctxtSwitch);
+}
+
 
 void trapIllegal(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapIllegal");     Halt(); 
+	TracePrintf(0, "trapIllegal");    
+	Halt(); 
 } 
 
 void trapMemory(ExceptionStackFrame *frame){     
@@ -109,7 +132,7 @@ int freePhysicalPage(unsigned int pfn) {
 }
 
 int GetPid(){
-	return curr_pid;
+	return cur_pcb->pid;
 }
 
 
@@ -272,12 +295,11 @@ TracePrintf(0,
 	// idleArgs[1] = NULL; 
 
 	LoadProgram("idle", idleArgs);
-	idle_pcb->ctxp = NULL;
-	idle_pcb->region_0_addr = (void*) ReadRegister(REG_PTR0);
+	idle_pcb->ctxp = malloc(sizeof(SavedContext));
+	idle_pcb->region_0_addr = region_0;
 	idle_pcb->pid = 0;
-	idle_pcb->next = NULL;
+	idle_pcb->next = init_pcb;
 
-	curr_pid = idle_pcb->pid;
 	printf("Loading init...\n");
 
 	region_0 = region_0_init;
@@ -286,12 +308,12 @@ TracePrintf(0,
 	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
 	
 	LoadProgram("idle", idleArgs);
-	init_pcb->ctxp = NULL;
-	init_pcb->region_0_addr = (void*) ReadRegister(REG_PTR0);
+	init_pcb->ctxp = malloc(sizeof(SavedContext));
+	init_pcb->region_0_addr = region_0_init;
 	init_pcb->pid = 1;
 	init_pcb->next = NULL;
 
-	printf("curpid %d\n", curr_pid);
+	cur_pcb = idle_pcb;
 	printf("Finished loading!!!!\n");
 	TracePrintf(0, "PC starts at %p\n", frame->pc);
 

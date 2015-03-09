@@ -1041,6 +1041,5 @@ Kernel   flushed
 Kernel   LoadProgram: couldn't read for 'idle'
 Kernel   PC starts at 0x10100
 Kernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
-Kernel   trapClockKernel   trapKernel
+Kernel   trapClock
+ABORT: ContextSwitch: kernel's function 0x20012c returned with bad kernel stack
