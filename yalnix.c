@@ -45,11 +45,21 @@ void* actual_brk;
 int curr_pid;
 
 ExceptionStackFrame *kernel_frame;
+int GetPid(){
+	return idle_pcb->pid;
+}
 
 void trapKernel(ExceptionStackFrame *frame){     
-	TracePrintf(0, "trapKernel");
+	TracePrintf(0, "trapKernel\n");
+	frame->psr = frame->psr | PSR_MODE;
+	
+	if (frame->code == YALNIX_GETPID) {
+		frame->regs[0] = GetPid();
+	}
+	
 	// Halt(); 
 } 
+
 void trapClock(ExceptionStackFrame *frame){
 	TracePrintf(0,"trapClock"); 
 } void trapIllegal(ExceptionStackFrame *frame){
@@ -81,14 +91,10 @@ unsigned int allocPhysicalPage(){
 }
 
 int freePhysicalPage(unsigned int pfn) {
-				TracePrintf(1, "Free page %p\n", pfn);
+	TracePrintf(1, "Free page %p\n", pfn);
 	physical_pages[pfn]->isRemoved = 0;
 	num_free_pages++;
 	return 1;
-}
-
-int GetPid(){
-	return curr_pid;
 }
 
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
@@ -243,6 +249,7 @@ TracePrintf(0,
 	idle_pcb->next = NULL;
 	
 	curr_pid = idle_pcb->pid;
+	printf("curpid %d\n", curr_pid);
 	printf("Finished loading!!!!\n");
 	TracePrintf(0, "PC starts at %p\n", frame->pc);
 
