@@ -47,9 +47,33 @@ void* actual_brk;
 
 struct pcb* cur_pcb;
 
-struct pte temp[KERNEL_STACK_PAGES];
+void* temp;
 
 ExceptionStackFrame *kernel_frame;
+unsigned int allocPhysicalPage(){
+	if (physical_pages == NULL){
+		return -1;
+	}
+	int i;
+	for (i = 0; i < physical_pages_length; i++){
+		if (physical_pages[i]->isRemoved == 0){
+			physical_pages[i]->isRemoved = 1;
+			num_free_pages--;
+			TracePrintf(1, "Allocing ppage %p\n", physical_pages[i]->pfn);
+
+			return physical_pages[i]->pfn;
+		}
+	}
+	return -1;
+}
+
+int freePhysicalPage(unsigned int pfn) {
+	TracePrintf(1, "Free page %p\n", pfn);
+	physical_pages[pfn]->isRemoved = 0;
+	num_free_pages++;
+	return 1;
+}
+
 
 SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	struct pcb* pcb1 = (struct pcb*) p1;
@@ -73,11 +97,28 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	
 	//pcb2->ctxp = ctxp; 
 	int a;
-	for (a = KERNEL_STACK_BASE / PAGESIZE; a < KERNEL_STACK_LIMIT/ PAGESIZE; a++){
-		int pfn1 = pcb1->region_0[a].pfn;
-		int pfn2 = pcb2->region_0[a].pfn;
-		printf ("1 %d 2 %d\n", pfn1, pfn2);
-		pcb2->region_0[a] = pcb1->region_0[a];
+	for (a = 0; a < KERNEL_STACK_PAGES; a++){
+		// int pfn1 = pcb1->region_0[a].pfn;
+		// int pfn2 = pcb2->region_0[a].pfn;
+		// printf ("1 %d 2 %d\n", pfn1, pfn2);
+		// pcb2->region_0[a] = pcb1->region_0[a];
+		memcpy(temp, (void*) KERNEL_STACK_BASE + a*PAGESIZE, PAGESIZE);
+		printf("copy1\n");
+		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
+		printf("flush1\n");
+		WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0);
+		printf("write1\n");
+		// printf("%p\n", )
+		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].valid = 1;
+		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].kprot = (PROT_READ | PROT_WRITE) ;
+		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].uprot = (PROT_NONE);
+		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].pfn = allocPhysicalPage();
+		memcpy((void*) KERNEL_STACK_BASE + a*PAGESIZE, temp, PAGESIZE);
+		printf("copy2\n");
+		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
+		printf("flush2\n");
+		WriteRegister(REG_PTR0, (RCS421RegVal) pcb1->region_0);
+		printf("write2\n");
 		
 	}
 
@@ -132,28 +173,6 @@ void trapTtyTransmit(ExceptionStackFrame *frame) {
 	Halt(); 
 }
 
-unsigned int allocPhysicalPage(){
-	if (physical_pages == NULL){
-		return -1;
-	}
-	int i;
-	for (i = 0; i < physical_pages_length; i++){
-		if (physical_pages[i]->isRemoved == 0){
-			physical_pages[i]->isRemoved = 1;
-			num_free_pages--;
-			TracePrintf(1, "Allocing ppage %p\n", physical_pages[i]->pfn);
-			return physical_pages[i]->pfn;
-		}
-	}
-	return -1;
-}
-
-int freePhysicalPage(unsigned int pfn) {
-	TracePrintf(1, "Free page %p\n", pfn);
-	physical_pages[pfn]->isRemoved = 0;
-	num_free_pages++;
-	return 1;
-}
 
 int GetPid(){
 	return cur_pcb->pid;
@@ -190,6 +209,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
 	int num_nodes = (current_spot) / PAGESIZE;
+	//int num_nodes = 1023;
 	int num_ptes = (pmem_size - PMEM_BASE) / PAGESIZE;
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
 	page_table = malloc(sizeof(struct pte *) * num_ptes);
@@ -208,6 +228,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	init_pcb->ctxp = malloc(sizeof(SavedContext));
 	ExceptionStackFrame* idle_stack = malloc(sizeof(ExceptionStackFrame));
 	ExceptionStackFrame* init_stack = malloc(sizeof(ExceptionStackFrame));
+	temp = malloc(PAGESIZE);
 	idle_pcb->kernel_stack = idle_stack;
 	init_pcb->kernel_stack = init_stack;
 	idle_pcb->region_0 = region_0;
@@ -243,10 +264,11 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		region_0[k] = entry;
 
 		struct pte entry_init;
-		entry_init.valid = 1;
-		entry_init.kprot = (PROT_READ | PROT_WRITE) ;
-		entry_init.uprot = (PROT_NONE);
-		entry_init.pfn = k + num_pages_region_0;
+		entry_init.valid = 0;
+		// entry_init.kprot = (PROT_READ | PROT_WRITE) ;
+		// entry_init.uprot = (PROT_NONE);
+		// entry_init.pfn = -1;
+		// printf("init pfn: %d\n", entry_init.pfn);
 		region_0_init[k] = entry_init;
 	}
 
@@ -309,6 +331,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		pfn++;
 	}
 	physical_pages_length = pfn;
+	printf("physical pages: %d\n", physical_pages_length);
 	num_free_pages = physical_pages_length;
 	
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
