@@ -11,7 +11,7 @@
 #define PMEM_1_BASE VMEM_1_BASE
 
 void* ivt[TRAP_VECTOR_SIZE];
-int LoadProgram(char *name, char **args);
+int LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn);
 
 struct node {
 	void* base;
@@ -24,7 +24,8 @@ struct pcb {
 	void* region_0_addr;
 	int pid;
 	struct pcb* next;
-
+	ExceptionStackFrame* kernel_stack;
+ 	struct pte* region_0;
 };
 
 struct pcb* idle_pcb;
@@ -46,6 +47,8 @@ void* actual_brk;
 
 struct pcb* cur_pcb;
 
+struct pte temp[KERNEL_STACK_PAGES];
+
 ExceptionStackFrame *kernel_frame;
 
 SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
@@ -53,7 +56,6 @@ SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	struct pcb* pcb2 = (struct pcb*) p2;
 
 	printf("Perfroming a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
-	pcb1->ctxp = ctxp;
 	
   	WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 	WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
@@ -61,6 +63,28 @@ SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	cur_pcb = pcb2;
 
 	return cur_pcb->ctxp;
+}
+
+SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
+	struct pcb* pcb1 = (struct pcb*) p1;
+	struct pcb* pcb2 = (struct pcb*) p2;
+
+	printf("Copying from %d to %d\n", pcb1->pid, pcb2->pid);
+	
+	//pcb2->ctxp = ctxp; 
+	int a;
+	for (a = KERNEL_STACK_BASE / PAGESIZE; a < KERNEL_STACK_LIMIT/ PAGESIZE; a++){
+		int pfn1 = pcb1->region_0[a].pfn;
+		int pfn2 = pcb2->region_0[a].pfn;
+		printf ("1 %d 2 %d\n", pfn1, pfn2);
+		pcb2->region_0[a] = pcb1->region_0[a];
+		
+	}
+
+	memcpy(pcb2->ctxp, ctxp, sizeof(SavedContext));
+
+
+	return ctxp;
 }
 
 void trapKernel(ExceptionStackFrame *frame){     
@@ -180,6 +204,14 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	char** idleArgs = malloc(sizeof(char*));
 	idle_pcb = malloc(sizeof(struct pcb));
 	init_pcb = malloc(sizeof(struct pcb));
+	idle_pcb->ctxp = malloc(sizeof(SavedContext));
+	init_pcb->ctxp = malloc(sizeof(SavedContext));
+	ExceptionStackFrame* idle_stack = malloc(sizeof(ExceptionStackFrame));
+	ExceptionStackFrame* init_stack = malloc(sizeof(ExceptionStackFrame));
+	idle_pcb->kernel_stack = idle_stack;
+	init_pcb->kernel_stack = init_stack;
+	idle_pcb->region_0 = region_0;
+	init_pcb->region_0 = region_0_init;
 
 	int h;
 	
@@ -278,9 +310,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	}
 	physical_pages_length = pfn;
 	num_free_pages = physical_pages_length;
-	printf("pfn %p\n", (void*)pfn);
-	printf("length %p\n", (void*)physical_pages_length);
-
+	
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
 	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
 
@@ -294,11 +324,12 @@ TracePrintf(0,
 	idleArgs[0] = NULL; 
 	// idleArgs[1] = NULL; 
 
-	LoadProgram("idle", idleArgs);
-	idle_pcb->ctxp = malloc(sizeof(SavedContext));
+	LoadProgram("idle", idleArgs, idle_stack);
+	
 	idle_pcb->region_0_addr = region_0;
 	idle_pcb->pid = 0;
 	idle_pcb->next = init_pcb;
+
 
 	printf("Loading init...\n");
 
@@ -307,8 +338,10 @@ TracePrintf(0,
 	// WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
 	
-	LoadProgram("idle", idleArgs);
-	init_pcb->ctxp = malloc(sizeof(SavedContext));
+	LoadProgram("idle", idleArgs, init_stack);
+	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, idle_pcb->ctxp, (void *)idle_pcb, (void *)init_pcb);
+	printf("Switch %d\n", ctxtSwitch);
+	
 	init_pcb->region_0_addr = region_0_init;
 	init_pcb->pid = 1;
 	init_pcb->next = NULL;
@@ -351,7 +384,7 @@ int SetKernelBrk(void *addr){
  *  in this case.
  */
 int
-LoadProgram(char *name, char **args)
+LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn)
 {
     int fd;
     int status;
@@ -482,6 +515,9 @@ LoadProgram(char *name, char **args)
     // >>>> Initialize sp for the current process to (char *)cpp.
     // >>>> The value of cpp was initialized above.
     kernel_frame->sp = (void*) cpp;
+    stackIn->sp = (void*) cpp;
+
+
 
     /*
      *  Free all the old physical memory belonging to this process,
@@ -650,52 +686,53 @@ TracePrintf(0,
      */
     // >>>> Initialize pc for the current process to (void *)li.entry
     kernel_frame->pc = li.entry;
+    stackIn->pc = li.entry;
 	    TracePrintf(0, "starting pc is %p\n", kernel_frame->pc);
     /*
      *  Now, finally, build the argument list on the new stack.
      */
 	// TracePrintf(0,
-	    // "0 %p %p\n", (char*) cpp, (char*) argcount);
-    // *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
+	//     "0 %p %p\n", (char*) cpp, (char*) argcount);
+ //    *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
 	// TracePrintf(0,
-	    // "1\n");
-    //*cpp++
-    // cp2 = argbuf;
-    // for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
-		// TracePrintf(0,
-	    // "2\n");
+	//     "1\n");
+ //    *cpp++;
+ //    cp2 = argbuf;
+ //    for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
+	// 	TracePrintf(0,
+	//     "2\n");
 	// *cpp++ = cp;
-		// TracePrintf(0,
-	    // "3\n");
+	// 	TracePrintf(0,
+	//     "3\n");
 
 	// strcpy(cp, cp2);
 	// TracePrintf(0,
-	    // "4\n");
+	//     "4\n");
 	// cp += strlen(cp) + 1;
-		// TracePrintf(0,
-	    // "5\n");
+	// 	TracePrintf(0,
+	//     "5\n");
 
 	// cp2 += strlen(cp2) + 1;
 	// TracePrintf(0,
-	    // "6\n");
+	//     "6\n");
 
-    // }
-    	// TracePrintf(0,
-	    // "7\n");
+ //    }
+ //    	TracePrintf(0,
+	//     "7\n");
 	// free(argbuf);
 	// TracePrintf(0,
-	    // "8\n");
+	//     "8\n");
 
-    // *cpp++ = NULL;	/* the last argv is a NULL pointer */
-    	// TracePrintf(0,
-	    // "9\n");
+ //    *cpp++ = NULL;	/* the last argv is a NULL pointer */
+ //    	TracePrintf(0,
+	//     "9\n");
 
-    // *cpp++ = NULL;	/* a NULL pointer for an empty envp */
+ //    *cpp++ = NULL;	/* a NULL pointer for an empty envp */
 	// TracePrintf(0,
-	    // "10\n");
-    // *cpp++ = 0;		/* and terminate the auxiliary vector */
+	//     "10\n");
+ //    *cpp++ = 0;		/* and terminate the auxiliary vector */
 	// TracePrintf(0,
-	    // "i bet this won't run\n");
+	//     "i bet this won't run\n");
 
     /*
      *  Initialize all regs[] registers for the current process to 0,
@@ -710,8 +747,10 @@ TracePrintf(0,
     int f;
     for (f = 0; f < NUM_REGS; f++){
         kernel_frame->regs[f] = 0;
+        stackIn->regs[f] = 0;
     }
-    kernel_frame->psr = 0;     
+    kernel_frame->psr = 0;
+    stackIn->psr = 0;     
 	TracePrintf(0,
 	    "f");
 
