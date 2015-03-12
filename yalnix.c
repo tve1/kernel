@@ -81,9 +81,9 @@ SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	struct pcb* pcb2 = (struct pcb*) p2;
 
 	printf("Perfroming a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
+	WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
 	
   	WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
-	WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
 	
 	cur_pcb = pcb2;
 
@@ -169,6 +169,7 @@ void trapIllegal(ExceptionStackFrame *frame){
 
 void trapMemory(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->pc);
+	cur_pcb->region_0[(int)frame->addr/PAGESIZE].pfn = allocPhysicalPage();
 	//Halt(); 
 } 
 
@@ -377,8 +378,8 @@ TracePrintf(0,
 	
 	cur_pcb = idle_pcb;
 	
-	LoadProgram("idle", idleArgs, init_stack);
 	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, idle_pcb->ctxp, (void *)idle_pcb, (void *)init_pcb);
+	LoadProgram("idle", idleArgs, init_stack);
 	printf("Switch %d\n", ctxtSwitch);
 	
 	init_pcb->region_0_addr = region_0_init;
