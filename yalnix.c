@@ -142,8 +142,18 @@ void trapClock(ExceptionStackFrame *frame){
 	TracePrintf(0,"trapClock"); 
 // TODO: Do every 2 ticks
 	
-	printf("cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, cur_pcb->next->pid);
-	int ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)cur_pcb->next);
+	
+	int ctxtSwitch;
+	
+	if (cur_pcb->next == NULL){
+		printf("A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, idle_pcb->pid);
+		ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)idle_pcb);
+		
+	}
+	else {
+		printf("B: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, cur_pcb->next->pid);
+		ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)cur_pcb->next);
+	}
 	printf("Switch %d\n", ctxtSwitch);
 }
 
@@ -155,7 +165,7 @@ void trapIllegal(ExceptionStackFrame *frame){
 
 void trapMemory(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->pc);
-	Halt(); 
+	//Halt(); 
 } 
 
 void trapMath(ExceptionStackFrame *frame){
@@ -361,6 +371,8 @@ TracePrintf(0,
 	// WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
 	
+	cur_pcb = idle_pcb;
+	
 	LoadProgram("idle", idleArgs, init_stack);
 	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, idle_pcb->ctxp, (void *)idle_pcb, (void *)init_pcb);
 	printf("Switch %d\n", ctxtSwitch);
@@ -369,7 +381,8 @@ TracePrintf(0,
 	init_pcb->pid = 1;
 	init_pcb->next = NULL;
 
-	cur_pcb = idle_pcb;
+	
+	
 	printf("Finished loading!!!!\n");
 	TracePrintf(0, "PC starts at %p\n", frame->pc);
 
