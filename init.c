@@ -5,6 +5,7 @@
 
 int main(){
 	printf("Starting init\n");
+	int result = Delay(5);
 	while (1){
 		printf("Process ID is: %d\n", GetPid());
 		Pause();

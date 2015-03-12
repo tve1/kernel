@@ -136,7 +136,9 @@ void trapKernel(ExceptionStackFrame *frame){
 	if (frame->code == YALNIX_GETPID) {
 		frame->regs[0] = GetPid();
 	}
-	
+	else if (frame->code == YALNIX_DELAY) {
+		frame->regs[0] = Delay(0);
+	}
 } 
 
 void trapClock(ExceptionStackFrame *frame){
@@ -188,7 +190,9 @@ void trapTtyTransmit(ExceptionStackFrame *frame) {
 	Halt(); 
 }
 
-
+int Delay(int clock_ticks){
+	return cur_pcb->pid;
+}
 int GetPid(){
 	return cur_pcb->pid;
 }
@@ -231,7 +235,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	num_pages_region_0 = (VMEM_0_LIMIT - VMEM_0_BASE ) / PAGESIZE;
 	region_0 = malloc(sizeof(struct pte) * num_pages_region_0);
-	struct pte* region_0_init = malloc(sizeof(struct pte) * num_pages_region_0);
+	struct pte* region_0_idle = malloc(sizeof(struct pte) * num_pages_region_0);
 
 	num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
 	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
@@ -247,8 +251,10 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	temp = malloc(PAGESIZE);
 	idle_pcb->kernel_stack = idle_stack;
 	init_pcb->kernel_stack = init_stack;
-	idle_pcb->region_0 = region_0;
-	init_pcb->region_0 = region_0_init;
+	idle_pcb->region_0 = region_0_idle;
+	init_pcb->region_0 = region_0;
+	idle_pcb->region_0_addr = region_0_idle;
+	idle_pcb->pid = 0;
 
 	int h;
 	
@@ -279,20 +285,20 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry.pfn = k;
 		region_0[k] = entry;
 
-		struct pte entry_init;
-		entry_init.valid = 0;
+		struct pte entry_idle;
+		entry_idle.valid = 0;
 		// entry_init.kprot = (PROT_READ | PROT_WRITE) ;
 		// entry_init.uprot = (PROT_NONE);
 		// entry_init.pfn = -1;
 		// printf("init pfn: %d\n", entry_init.pfn);
-		region_0_init[k] = entry_init;
+		region_0_idle[k] = entry_idle;
 	}
 
 	int a;
 
 	for (a = 0; a < MEM_INVALID_PAGES; a++) {
 		region_0[a].valid = 0;
-		region_0_init[a].valid = 0;
+		region_0_idle[a].valid = 0;
 
 	}
 	int m;
@@ -359,34 +365,38 @@ TracePrintf(0,
 	    "Virtual memory enabled\n");
 	printf("WE STARTED!!!\n");
 	
-	printf("Loading idle...\n");
 	idleArgs[0] = NULL; 
-	// idleArgs[1] = NULL; 
-
-	LoadProgram("idle", idleArgs, idle_stack);
-	
-	idle_pcb->region_0_addr = region_0;
-	idle_pcb->pid = 0;
-	idle_pcb->next = init_pcb;
-
-
+	initArgs[0] = NULL; 
 	printf("Loading init...\n");
 
-	region_0 = region_0_init;
+	LoadProgram("init", initArgs, init_stack);
+	
+	init_pcb->region_0_addr = region_0;
+	init_pcb->pid = 1;
+	init_pcb->next = NULL;
+
+
+	printf("Loading idle...\n");
+
+	region_0 = region_0_idle;
 
 	// WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
 	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
 	
-	cur_pcb = idle_pcb;
+	cur_pcb = init_pcb;
 	
-	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, idle_pcb->ctxp, (void *)idle_pcb, (void *)init_pcb);
-	LoadProgram("init", initArgs, init_stack);
+	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, init_pcb->ctxp, (void *)init_pcb, (void *)idle_pcb);
+	LoadProgram("idle", idleArgs, idle_stack);
 	printf("Switch %d\n", ctxtSwitch);
 	
-	init_pcb->region_0_addr = region_0_init;
-	init_pcb->pid = 1;
-	init_pcb->next = NULL;
+	
+	idle_pcb->next = init_pcb;
 
+	// LoadProgram("idle", idleArgs, idle_stack);
+	
+	// idle_pcb->region_0_addr = region_0;
+	// idle_pcb->pid = 0;
+	// idle_pcb->next = init_pcb;
 	
 	
 	printf("Finished loading!!!!\n");
