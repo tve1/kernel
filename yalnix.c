@@ -48,6 +48,7 @@ void* actual_brk;
 struct pcb* cur_pcb;
 
 void* temp;
+int tick = 0;
 
 ExceptionStackFrame *kernel_frame;
 unsigned int allocPhysicalPage(){
@@ -140,21 +141,24 @@ void trapKernel(ExceptionStackFrame *frame){
 
 void trapClock(ExceptionStackFrame *frame){
 	TracePrintf(0,"trapClock"); 
-// TODO: Do every 2 ticks
 	
-	
-	int ctxtSwitch;
-	
-	if (cur_pcb->next == NULL){
-		printf("A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, idle_pcb->pid);
-		ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)idle_pcb);
+	if (tick == 0)
+		tick++;
+	else if (tick == 1){
+		int ctxtSwitch;
 		
-	}
-	else {
-		printf("B: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, cur_pcb->next->pid);
-		ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)cur_pcb->next);
-	}
-	printf("Switch %d\n", ctxtSwitch);
+		if (cur_pcb->next == NULL){
+			printf("A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, idle_pcb->pid);
+			ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)idle_pcb);
+			
+		}
+		else {
+			printf("B: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, cur_pcb->next->pid);
+			ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)cur_pcb->next);
+		}
+		printf("Switch %d\n", ctxtSwitch);
+		tick--;
+	}		
 }
 
 
