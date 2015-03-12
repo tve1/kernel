@@ -26,6 +26,7 @@ struct pcb {
 	struct pcb* next;
 	ExceptionStackFrame* kernel_stack;
  	struct pte* region_0;
+ 	int delayTick;
 };
 
 struct pcb* idle_pcb;
@@ -137,28 +138,53 @@ void trapKernel(ExceptionStackFrame *frame){
 		frame->regs[0] = GetPid();
 	}
 	else if (frame->code == YALNIX_DELAY) {
-		frame->regs[0] = Delay(0);
+		frame->regs[0] = Delay(frame->regs[1]);
+		// printf("frame->regs[0] %d\n", frame->regs[0]);
 	}
 } 
 
+struct pcb* getNextProcess() {
+	struct pcb* nextProcess = cur_pcb->next;
+	if (nextProcess == NULL) {
+		nextProcess = idle_pcb;
+	}
+	while (nextProcess->delayTick > 0) {
+		nextProcess = nextProcess->next;
+		if (nextProcess == NULL) {
+			nextProcess = idle_pcb;
+		}
+	}
+	return nextProcess;
+}
+void doAContextSwitch() {
+	int ctxtSwitch;
+	struct pcb* nextPcb = getNextProcess(); 
+	printf("A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, nextPcb->pid);
+	ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)nextPcb);
+
+	printf("Switch %d\n", ctxtSwitch);
+}
+
+
+
+void subtractDelayTicks() {
+	struct pcb* temp_pcb = idle_pcb;
+	while (temp_pcb != NULL) {
+			printf("Delay tics %d\n", temp_pcb->delayTick);
+		if (temp_pcb->delayTick > 0) {
+			temp_pcb->delayTick--;
+		}
+		temp_pcb = temp_pcb->next;
+	} 
+}
+
 void trapClock(ExceptionStackFrame *frame){
 	TracePrintf(0,"trapClock"); 
-	
+	subtractDelayTicks();
 	if (tick == 0)
 		tick++;
 	else if (tick == 1){
-		int ctxtSwitch;
-		
-		if (cur_pcb->next == NULL){
-			printf("A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, idle_pcb->pid);
-			ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)idle_pcb);
-			
-		}
-		else {
-			printf("B: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, cur_pcb->next->pid);
-			ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)cur_pcb->next);
-		}
-		printf("Switch %d\n", ctxtSwitch);
+		doAContextSwitch();
 		tick--;
 	}		
 }
@@ -191,7 +217,18 @@ void trapTtyTransmit(ExceptionStackFrame *frame) {
 }
 
 int Delay(int clock_ticks){
-	return cur_pcb->pid;
+	TracePrintf(1, "Delaying for %d ticks\n", clock_ticks);
+	if (clock_ticks < 0) {
+		return ERROR;
+	}
+	else if (clock_ticks == 0 ){
+		return 0;
+	}
+	else {
+		cur_pcb->delayTick = clock_ticks;
+		doAContextSwitch();
+		return 0;
+	}
 }
 int GetPid(){
 	return cur_pcb->pid;
@@ -255,7 +292,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	init_pcb->region_0 = region_0;
 	idle_pcb->region_0_addr = region_0_idle;
 	idle_pcb->pid = 0;
-
+	idle_pcb->delayTick = 0;
+	init_pcb->delayTick = 0;
 	int h;
 	
 	for (h = 0; h < num_ptes; h++){
