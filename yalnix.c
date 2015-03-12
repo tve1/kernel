@@ -169,8 +169,8 @@ void trapIllegal(ExceptionStackFrame *frame){
 
 void trapMemory(ExceptionStackFrame *frame){     
 	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->pc);
-	cur_pcb->region_0[(int)frame->addr/PAGESIZE].pfn = allocPhysicalPage();
-	//Halt(); 
+	// cur_pcb->region_0[(int)frame->addr/PAGESIZE].pfn = allocPhysicalPage();
+	Halt(); 
 } 
 
 void trapMath(ExceptionStackFrame *frame){
@@ -237,6 +237,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
 
 	char** idleArgs = malloc(sizeof(char*));
+	char** initArgs = malloc(sizeof(char*));
 	idle_pcb = malloc(sizeof(struct pcb));
 	init_pcb = malloc(sizeof(struct pcb));
 	idle_pcb->ctxp = malloc(sizeof(SavedContext));
@@ -379,7 +380,7 @@ TracePrintf(0,
 	cur_pcb = idle_pcb;
 	
 	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, idle_pcb->ctxp, (void *)idle_pcb, (void *)init_pcb);
-	LoadProgram("idle", idleArgs, init_stack);
+	LoadProgram("init", initArgs, init_stack);
 	printf("Switch %d\n", ctxtSwitch);
 	
 	init_pcb->region_0_addr = region_0_init;
