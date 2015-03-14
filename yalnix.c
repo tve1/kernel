@@ -50,6 +50,7 @@ struct pcb* cur_pcb;
 
 void* temp;
 int tick = 0;
+int is_vmem = 0;
 
 ExceptionStackFrame *kernel_frame;
 unsigned int allocPhysicalPage(){
@@ -61,7 +62,7 @@ unsigned int allocPhysicalPage(){
 		if (physical_pages[i]->isRemoved == 0){
 			physical_pages[i]->isRemoved = 1;
 			num_free_pages--;
-			TracePrintf(1, "Allocing ppage %p\n", physical_pages[i]->pfn);
+			TracePrintf(1, "Allocing page %p\n", physical_pages[i]->pfn);
 
 			return physical_pages[i]->pfn;
 		}
@@ -343,7 +344,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	for (m = 0; m < num_pages_region_1; m++) {
 		struct pte entry;
-		entry.valid = 1;
+		entry.valid = 0;
 		entry.kprot = PROT_NONE;
 		entry.uprot = PROT_NONE;
 		entry.pfn = m + num_pages_region_0;
@@ -354,7 +355,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	int j;
 	
-	int kernel_page_base = PMEM_1_BASE / PAGESIZE;
+	int kernel_page_base = num_pages_region_0;
 	
 	for (j = kernel_page_base; j < num_text_pages + kernel_page_base; j++){
 		page_table[j]->valid = 1;
@@ -364,12 +365,14 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry.valid = 1;
 		entry.kprot = (PROT_READ | PROT_EXEC);
 		region_1[j - kernel_page_base] = entry;
+		printf("index: %d, pfn: %d\n", j-kernel_page_base, entry.pfn);
 	}
 
 	
 	int num_dbh_pages = ((unsigned long)(actual_brk - (void*) &_etext) / PAGESIZE);
 
 	int n;
+	printf("dbh: %d\n", num_dbh_pages);
 	
 	for (n = kernel_page_base + num_text_pages; n < kernel_page_base + num_text_pages + num_dbh_pages; n++){
 		page_table[n]->valid = 1;
@@ -378,6 +381,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry.valid = 1;
 		entry.kprot = (PROT_READ | PROT_WRITE);
 		region_1[n - kernel_page_base] = entry;
+		printf("index: %d, pfn: %d\n", n-kernel_page_base, entry.pfn);
 	}
 
 	current_spot = (unsigned long) 0;
@@ -399,6 +403,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 	//ENABLING VIRTUAL MEMORY!!!!!
 	WriteRegister(REG_VM_ENABLE, 1);
+	is_vmem = 1;
+
 TracePrintf(0,
 	    "Virtual memory enabled\n");
 	printf("WE STARTED!!!\n");
@@ -438,8 +444,6 @@ TracePrintf(0,
 	
 	
 	printf("Finished loading!!!!\n");
-	TracePrintf(0, "PC starts at %p\n", frame->pc);
-
 }
 
 
@@ -449,7 +453,36 @@ TracePrintf(0,
 int SetKernelBrk(void *addr){
 	printf("Brk\n");
 	TracePrintf(0,"kernel break\n");
-	actual_brk = addr;
+
+	if (addr > (void*) VMEM_1_LIMIT){
+		TracePrintf(0, "addr > VMEM_1_LIMIT\n");
+		return -1;
+	}
+	if (is_vmem) {
+		void* new_brk =	new_brk = (void*) UP_TO_PAGE(addr);
+		if (new_brk < actual_brk){
+			return ERROR;
+		}
+		else if (new_brk > actual_brk){
+			printf("from %p to %p\n", actual_brk, addr);
+			
+			int num_to_alloc = (new_brk - actual_brk) / PAGESIZE;
+			printf("alloc-ing %d pages\n", num_to_alloc);
+			int j;
+			for (j=0; j < num_to_alloc; j++) {
+				int index = ((unsigned long) (actual_brk) / PAGESIZE + j ) - num_pages_region_0; 
+				printf("index: %d\n", index);
+				struct pte entry = region_1[index];
+				entry.valid = 1;
+				entry.kprot = (PROT_READ | PROT_WRITE);
+				region_1[index] = entry;
+			}
+			actual_brk = new_brk;
+		}
+	}
+	else {
+		actual_brk = addr;
+	}
 	return 0;
 }
 
