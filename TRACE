@@ -568,3 +568,52 @@ Kernel   Allocing page 0x20
 Kernel   Allocing page 0x21
 Kernel   trapKernel
 Kernel   trapClockKernel   trapKernel
+Kernel   trapClockKernel   LoadProgram 'idle', args 0x20e128
+Kernel   LoadProgram: LoadInfo status 0
+Kernel   text_size 0x7000, data_size 0x128, bss_size 0x3090
+Kernel   entry 0x10100
+Kernel   LoadProgram: size 0, argcount 0
+Kernel   LoadProgram: text_npg 7, data_bss_npg 4, stack_npg 1
+Kernel   hiKernel   Free page 0x13
+Kernel   Free page 0x14
+Kernel   Free page 0x15
+Kernel   Free page 0x16
+Kernel   Free page 0x17
+Kernel   Free page 0x18
+Kernel   Free page 0x19
+Kernel   Free page 0x1a
+Kernel   Free page 0x1b
+Kernel   Free page 0x1c
+Kernel   Free page 0x1d
+Kernel   Free page 0x1e
+Kernel   helloKernel   heyKernel   Allocing page 0x13
+Kernel   Allocing page 0x14
+Kernel   Allocing page 0x15
+Kernel   Allocing page 0x16
+Kernel   Allocing page 0x17
+Kernel   Allocing page 0x18
+Kernel   Allocing page 0x19
+Kernel   howdyKernel   Allocing page 0x1a
+Kernel   Allocing page 0x1b
+Kernel   Allocing page 0x1c
+Kernel   Allocing page 0x1d
+Kernel   yoKernel   Allocing page 0x1e
+Kernel   flushing 0x5 0xfffffffffffffffe
+Kernel   flushed
+Kernel   ez
+Kernel   e
+Kernel   starting pc is 0x10100
+Kernel   0 0x1fafe0 (nil)
+Kernel   1
+Kernel   7
+Kernel   8
+Kernel   9
+Kernel   10
+Kernel   i bet this won't run
+Kernel   fKernel   trapKernel
+Kernel   trapClockKernel   trapKernel
+Kernel   trapClockKernel   trapKernel
+Kernel   trapClockKernel   trapKernel
+Kernel   trapClockKernel   trapKernel
+Kernel   trapClockKernel   trapKernel
+Kernel   trapClockKernel   trapKernel

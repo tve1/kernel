@@ -150,6 +150,10 @@ void trapKernel(ExceptionStackFrame *frame){
 		frame->regs[0] = Brk((void*)frame->regs[1]);
 		// printf("frame->regs[0] %d\n", frame->regs[0]);
 	}
+	else if (frame->code == YALNIX_FORK) {
+		frame->regs[0] = Fork();
+		// printf("frame->regs[0] %d\n", frame->regs[0]);
+	}
 } 
 
 struct pcb* getNextProcess() {
@@ -229,7 +233,9 @@ void trapMemory(ExceptionStackFrame *frame){
 } 
 
 void trapMath(ExceptionStackFrame *frame){
-	TracePrintf(0, "trapMath");     
+	TracePrintf(0, "trapMath\n");     
+	// TracePrintf(0, "Process %d recieved trap math. Terminating.\n");     
+	
 	Halt(); 
 } 
 
@@ -658,7 +664,6 @@ TracePrintf(0,
     return (0);
 }
 
-
 void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
 	actual_brk = orig_brk;
 	kernel_frame = frame;
@@ -869,6 +874,18 @@ TracePrintf(0,
 	printf("Finished loading!!!!\n");
 }
 
+struct pte*  allocNewRegion0() {
+		// if can use second half do that
+	//else
+	// int pfn = allocPhysicalPage();
+	// region_1[topIndex].pfn = pfn;
+	// struct pte* new_region0 = region_1[topIndex];
+}
+
+int Fork() {
+
+	return 0;
+}
 
 int Brk(void *addr) {
 	printf("Doing Brk %p\n", addr);
@@ -927,7 +944,7 @@ int SetKernelBrk(void *addr){
 	printf("Brk\n");
 	TracePrintf(0,"kernel break\n");
 
-	if (addr > (void*) VMEM_1_LIMIT){
+	if (addr > (void*) VMEM_1_LIMIT || addr < (void*) VMEM_1_BASE){
 		TracePrintf(0, "addr > VMEM_1_LIMIT\n");
 		return -1;
 	}
