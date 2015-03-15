@@ -11,7 +11,6 @@
 #define PMEM_1_BASE VMEM_1_BASE
 
 void* ivt[TRAP_VECTOR_SIZE];
-int LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn);
 
 struct node {
 	void* base;
@@ -27,7 +26,12 @@ struct pcb {
 	ExceptionStackFrame* kernel_stack;
  	struct pte* region_0;
  	int delayTick;
+ 	int heapTopIndex;
+ 	int bottomOfHeapIndex;
+ 	int userStackTopIndex;
+ 	int userStackBottomIndex;
 };
+
 
 struct pcb* idle_pcb;
 struct pcb* init_pcb;
@@ -142,6 +146,10 @@ void trapKernel(ExceptionStackFrame *frame){
 		frame->regs[0] = Delay(frame->regs[1]);
 		// printf("frame->regs[0] %d\n", frame->regs[0]);
 	}
+	else if (frame->code == YALNIX_BRK) {
+		frame->regs[0] = Brk((void*)frame->regs[1]);
+		// printf("frame->regs[0] %d\n", frame->regs[0]);
+	}
 } 
 
 struct pcb* getNextProcess() {
@@ -197,9 +205,27 @@ void trapIllegal(ExceptionStackFrame *frame){
 } 
 
 void trapMemory(ExceptionStackFrame *frame){     
-	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->pc);
+	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->addr);
 	// cur_pcb->region_0[(int)frame->addr/PAGESIZE].pfn = allocPhysicalPage();
-	Halt(); 
+	void* new_addr = (void*)DOWN_TO_PAGE(frame->addr);
+	if ((unsigned long)new_addr < cur_pcb->userStackBottomIndex * PAGESIZE && (unsigned long)new_addr > (cur_pcb->heapTopIndex + 1)* PAGESIZE) {
+		printf("Extending user heap to %p\n", new_addr);
+		int num_to_alloc = (cur_pcb->userStackBottomIndex * PAGESIZE - (unsigned long)new_addr) / PAGESIZE; 
+		printf("Allocating %d pages\n", num_to_alloc);
+		int i;
+		for (i = 0; i < num_to_alloc; i++) {
+			cur_pcb->userStackBottomIndex--;
+			int new_pfn = allocPhysicalPage();
+			printf("Allocating page %d\n", new_pfn);
+			cur_pcb->region_0[cur_pcb->userStackBottomIndex].pfn = new_pfn;
+			cur_pcb->region_0[cur_pcb->userStackBottomIndex].valid = 1;
+	        cur_pcb->region_0[cur_pcb->userStackBottomIndex].kprot = PROT_READ | PROT_WRITE;
+    	    cur_pcb->region_0[cur_pcb->userStackBottomIndex].uprot = PROT_READ | PROT_WRITE;
+		}
+	}
+	else {
+		Halt();
+	}
 } 
 
 void trapMath(ExceptionStackFrame *frame){
@@ -235,257 +261,6 @@ int GetPid(){
 	return cur_pcb->pid;
 }
 
-
-void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
-	actual_brk = orig_brk;
-	kernel_frame = frame;
-
-	void (*ptr_to_kernel)(ExceptionStackFrame *);
-	ptr_to_kernel = &trapKernel;
-	ivt[TRAP_KERNEL] = ptr_to_kernel;
-	void (*ptr_to_clock)(ExceptionStackFrame *);
-	ptr_to_clock = &trapClock;
-	ivt[TRAP_CLOCK] = ptr_to_clock;
-	void (*ptr_to_illegal)(ExceptionStackFrame *);
-	ptr_to_illegal = &trapIllegal;
-	ivt[TRAP_ILLEGAL] = ptr_to_illegal;
-	void (*ptr_to_memory)(ExceptionStackFrame *);
-	ptr_to_memory = &trapMemory;
-	ivt[TRAP_MEMORY] = ptr_to_memory;
-	void (*ptr_to_math)(ExceptionStackFrame *);
-	ptr_to_math = &trapMath;
-	ivt[TRAP_MATH] = ptr_to_math;
-	void (*ptr_to_receive)(ExceptionStackFrame *);
-	ptr_to_receive = &trapTtyReceive;
-	ivt[TRAP_TTY_RECEIVE] = ptr_to_receive;
-	void (*ptr_to_transmit)(ExceptionStackFrame *);
-	ptr_to_transmit = &trapTtyTransmit;
-	ivt[TRAP_TTY_TRANSMIT] = ptr_to_transmit;
-	
-	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
-
-	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
-	int num_nodes = (current_spot) / PAGESIZE;
-	//int num_nodes = 1023;
-	int num_ptes = (pmem_size - PMEM_BASE) / PAGESIZE;
-	physical_pages = malloc(sizeof(struct node*) * num_nodes);
-	page_table = malloc(sizeof(struct pte *) * num_ptes);
-	
-	num_pages_region_0 = (VMEM_0_LIMIT - VMEM_0_BASE ) / PAGESIZE;
-	region_0 = malloc(sizeof(struct pte) * num_pages_region_0);
-	struct pte* region_0_idle = malloc(sizeof(struct pte) * num_pages_region_0);
-
-	num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
-	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
-
-	char** idleArgs = malloc(sizeof(char*));
-	char** initArgs = malloc(sizeof(char*));
-	idle_pcb = malloc(sizeof(struct pcb));
-	init_pcb = malloc(sizeof(struct pcb));
-	idle_pcb->ctxp = malloc(sizeof(SavedContext));
-	init_pcb->ctxp = malloc(sizeof(SavedContext));
-	ExceptionStackFrame* idle_stack = malloc(sizeof(ExceptionStackFrame));
-	ExceptionStackFrame* init_stack = malloc(sizeof(ExceptionStackFrame));
-	temp = malloc(PAGESIZE);
-	idle_pcb->kernel_stack = idle_stack;
-	init_pcb->kernel_stack = init_stack;
-	idle_pcb->region_0 = region_0_idle;
-	init_pcb->region_0 = region_0;
-	idle_pcb->region_0_addr = region_0_idle;
-	idle_pcb->pid = 0;
-	idle_pcb->delayTick = 0;
-	init_pcb->delayTick = 0;
-	int h;
-	
-	for (h = 0; h < num_ptes; h++){
-		struct pte * entry = malloc(sizeof(struct pte));
-		entry->valid = 1;
-		entry->kprot = PROT_NONE;
-		entry->uprot = PROT_NONE;
-		entry->pfn = h;
-		page_table[h] = entry;
-	}
-	
-	int i;
-
-	for (i = 0; i < num_nodes; i++) {
-		struct node* new_page = malloc(sizeof(struct node*));
-		physical_pages[i] = new_page;
-		new_page->pfn = i;
-	}
-
-	int k;
-
-	for (k = 0; k < num_pages_region_0; k++) {
-		struct pte entry;
-		entry.valid = 1;
-		entry.kprot = (PROT_READ | PROT_WRITE) ;
-		entry.uprot = (PROT_NONE);
-		entry.pfn = k;
-		region_0[k] = entry;
-
-		struct pte entry_idle;
-		entry_idle.valid = 0;
-		// entry_init.kprot = (PROT_READ | PROT_WRITE) ;
-		// entry_init.uprot = (PROT_NONE);
-		// entry_init.pfn = -1;
-		// printf("init pfn: %d\n", entry_init.pfn);
-		region_0_idle[k] = entry_idle;
-	}
-
-	int a;
-
-	for (a = 0; a < MEM_INVALID_PAGES; a++) {
-		region_0[a].valid = 0;
-		region_0_idle[a].valid = 0;
-
-	}
-	int m;
-
-	for (m = 0; m < num_pages_region_1; m++) {
-		struct pte entry;
-		entry.valid = 0;
-		entry.kprot = PROT_NONE;
-		entry.uprot = PROT_NONE;
-		entry.pfn = m + num_pages_region_0;
-		region_1[m] = entry;
-	}
-	
-	int num_text_pages = ((unsigned long) &_etext - PMEM_1_BASE) / PAGESIZE;
-	
-	int j;
-	
-	int kernel_page_base = num_pages_region_0;
-	
-	for (j = kernel_page_base; j < num_text_pages + kernel_page_base; j++){
-		page_table[j]->valid = 1;
-		page_table[j]->kprot = (PROT_READ | PROT_EXEC);
-
-		struct pte entry = region_1[j - kernel_page_base];
-		entry.valid = 1;
-		entry.kprot = (PROT_READ | PROT_EXEC);
-		region_1[j - kernel_page_base] = entry;
-		printf("index: %d, pfn: %d\n", j-kernel_page_base, entry.pfn);
-	}
-
-	
-	int num_dbh_pages = ((unsigned long)(actual_brk - (void*) &_etext) / PAGESIZE);
-
-	int n;
-	printf("dbh: %d\n", num_dbh_pages);
-	
-	for (n = kernel_page_base + num_text_pages; n < kernel_page_base + num_text_pages + num_dbh_pages; n++){
-		page_table[n]->valid = 1;
-		page_table[n]->kprot = (PROT_READ | PROT_WRITE);
-		struct pte entry = region_1[n - kernel_page_base];
-		entry.valid = 1;
-		entry.kprot = (PROT_READ | PROT_WRITE);
-		region_1[n - kernel_page_base] = entry;
-		printf("index: %d, pfn: %d\n", n-kernel_page_base, entry.pfn);
-	}
-
-	current_spot = (unsigned long) 0;
-
-	int pfn = 0;
-	
-	// Only going one-direction
-	while (pfn < num_nodes) {
-		physical_pages[pfn]->base = (void*)current_spot;
-		current_spot += PAGESIZE;
-		pfn++;
-	}
-	physical_pages_length = pfn;
-	printf("physical pages: %d\n", physical_pages_length);
-	num_free_pages = physical_pages_length;
-	
-	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
-	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
-
-	//ENABLING VIRTUAL MEMORY!!!!!
-	WriteRegister(REG_VM_ENABLE, 1);
-	is_vmem = 1;
-
-TracePrintf(0,
-	    "Virtual memory enabled\n");
-	printf("WE STARTED!!!\n");
-	
-	idleArgs[0] = NULL; 
-	initArgs[0] = NULL; 
-	printf("Loading init...\n");
-
-	LoadProgram("init", initArgs, init_stack);
-	
-	init_pcb->region_0_addr = region_0;
-	init_pcb->pid = 1;
-	init_pcb->next = NULL;
-
-
-	printf("Loading idle...\n");
-
-	region_0 = region_0_idle;
-
-	// WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
-	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
-	
-	cur_pcb = init_pcb;
-	
-	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, init_pcb->ctxp, (void *)init_pcb, (void *)idle_pcb);
-	LoadProgram("idle", idleArgs, idle_stack);
-	printf("Switch %d\n", ctxtSwitch);
-	
-	
-	idle_pcb->next = init_pcb;
-
-	// LoadProgram("idle", idleArgs, idle_stack);
-	
-	// idle_pcb->region_0_addr = region_0;
-	// idle_pcb->pid = 0;
-	// idle_pcb->next = init_pcb;
-	
-	
-	printf("Finished loading!!!!\n");
-}
-
-
-
-
-
-int SetKernelBrk(void *addr){
-	printf("Brk\n");
-	TracePrintf(0,"kernel break\n");
-
-	if (addr > (void*) VMEM_1_LIMIT){
-		TracePrintf(0, "addr > VMEM_1_LIMIT\n");
-		return -1;
-	}
-	if (is_vmem) {
-		void* new_brk =	new_brk = (void*) UP_TO_PAGE(addr);
-		if (new_brk < actual_brk){
-			return ERROR;
-		}
-		else if (new_brk > actual_brk){
-			printf("from %p to %p\n", actual_brk, addr);
-			
-			int num_to_alloc = (new_brk - actual_brk) / PAGESIZE;
-			printf("alloc-ing %d pages\n", num_to_alloc);
-			int j;
-			for (j=0; j < num_to_alloc; j++) {
-				int index = ((unsigned long) (actual_brk) / PAGESIZE + j ) - num_pages_region_0; 
-				printf("index: %d\n", index);
-				struct pte entry = region_1[index];
-				entry.valid = 1;
-				entry.kprot = (PROT_READ | PROT_WRITE);
-				region_1[index] = entry;
-			}
-			actual_brk = new_brk;
-		}
-	}
-	else {
-		actual_brk = addr;
-	}
-	return 0;
-}
-
 /*
  *  Load a program into the current process's address space.  The
  *  program comes from the Unix file identified by "name", and its
@@ -507,7 +282,7 @@ int SetKernelBrk(void *addr){
  *  in this case.
  */
 int
-LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn)
+LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* pcb_in)
 {
     int fd;
     int status;
@@ -707,9 +482,11 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn)
     }
     bottom = top;
     top += data_bss_npg;
+	pcb_in->bottomOfHeapIndex = bottom;
+    pcb_in->heapTopIndex = top - 1;
+
 	TracePrintf(0,
 	    "howdy");
-
     /* Then the data and bss pages */
     // >>>> For the next data_bss_npg number of PTEs in the Region 0
     // >>>> page table, initialize each PTE:
@@ -749,6 +526,8 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn)
         region_0[d].uprot = PROT_READ | PROT_WRITE;
         region_0[d].pfn   = allocPhysicalPage();
     }
+    pcb_in->userStackBottomIndex = user_stack_page - stack_npg;
+    pcb_in->userStackTopIndex = user_stack_page - 1;
 
 	TracePrintf(0,
 	    "flushing %p %p\n", (void*) REG_TLB_FLUSH, (void*) TLB_FLUSH_0);
@@ -814,48 +593,47 @@ TracePrintf(0,
     /*
      *  Now, finally, build the argument list on the new stack.
      */
-	// TracePrintf(0,
-	//     "0 %p %p\n", (char*) cpp, (char*) argcount);
- //    *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
-	// TracePrintf(0,
-	//     "1\n");
- //    *cpp++;
- //    cp2 = argbuf;
- //    for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
-	// 	TracePrintf(0,
-	//     "2\n");
-	// *cpp++ = cp;
-	// 	TracePrintf(0,
-	//     "3\n");
+	TracePrintf(0,
+	    "0 %p %p\n", (char*) cpp, (char*) argcount);
+    *cpp++ = (char *)argcount;		/* the first value at cpp is argc */
+	TracePrintf(0,
+	    "1\n");
+    cp2 = argbuf;
+    for (i = 0; i < argcount; i++) {      /* copy each argument and set argv */
+		TracePrintf(0,
+	    "2\n");
+	*cpp++ = cp;
+		TracePrintf(0,
+	    "3\n");
 
-	// strcpy(cp, cp2);
-	// TracePrintf(0,
-	//     "4\n");
-	// cp += strlen(cp) + 1;
-	// 	TracePrintf(0,
-	//     "5\n");
+	strcpy(cp, cp2);
+	TracePrintf(0,
+	    "4\n");
+	cp += strlen(cp) + 1;
+		TracePrintf(0,
+	    "5\n");
 
-	// cp2 += strlen(cp2) + 1;
-	// TracePrintf(0,
-	//     "6\n");
+	cp2 += strlen(cp2) + 1;
+	TracePrintf(0,
+	    "6\n");
 
- //    }
- //    	TracePrintf(0,
-	//     "7\n");
-	// free(argbuf);
-	// TracePrintf(0,
-	//     "8\n");
+    }
+    	TracePrintf(0,
+	    "7\n");
+	free(argbuf);
+	TracePrintf(0,
+	    "8\n");
 
- //    *cpp++ = NULL;	/* the last argv is a NULL pointer */
- //    	TracePrintf(0,
-	//     "9\n");
+    *cpp++ = NULL;	/* the last argv is a NULL pointer */
+    	TracePrintf(0,
+	    "9\n");
 
- //    *cpp++ = NULL;	/* a NULL pointer for an empty envp */
-	// TracePrintf(0,
-	//     "10\n");
- //    *cpp++ = 0;		/* and terminate the auxiliary vector */
-	// TracePrintf(0,
-	//     "i bet this won't run\n");
+    *cpp++ = NULL;	/* a NULL pointer for an empty envp */
+	TracePrintf(0,
+	    "10\n");
+    *cpp++ = 0;		/* and terminate the auxiliary vector */
+	TracePrintf(0,
+	    "i bet this won't run\n");
 
     /*
      *  Initialize all regs[] registers for the current process to 0,
@@ -879,3 +657,305 @@ TracePrintf(0,
 
     return (0);
 }
+
+
+void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig_brk, char **cmd_args) {
+	actual_brk = orig_brk;
+	kernel_frame = frame;
+
+	void (*ptr_to_kernel)(ExceptionStackFrame *);
+	ptr_to_kernel = &trapKernel;
+	ivt[TRAP_KERNEL] = ptr_to_kernel;
+	void (*ptr_to_clock)(ExceptionStackFrame *);
+	ptr_to_clock = &trapClock;
+	ivt[TRAP_CLOCK] = ptr_to_clock;
+	void (*ptr_to_illegal)(ExceptionStackFrame *);
+	ptr_to_illegal = &trapIllegal;
+	ivt[TRAP_ILLEGAL] = ptr_to_illegal;
+	void (*ptr_to_memory)(ExceptionStackFrame *);
+	ptr_to_memory = &trapMemory;
+	ivt[TRAP_MEMORY] = ptr_to_memory;
+	void (*ptr_to_math)(ExceptionStackFrame *);
+	ptr_to_math = &trapMath;
+	ivt[TRAP_MATH] = ptr_to_math;
+	void (*ptr_to_receive)(ExceptionStackFrame *);
+	ptr_to_receive = &trapTtyReceive;
+	ivt[TRAP_TTY_RECEIVE] = ptr_to_receive;
+	void (*ptr_to_transmit)(ExceptionStackFrame *);
+	ptr_to_transmit = &trapTtyTransmit;
+	ivt[TRAP_TTY_TRANSMIT] = ptr_to_transmit;
+	
+	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
+
+	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
+	int num_nodes = (current_spot) / PAGESIZE;
+	//int num_nodes = 1023;
+	int num_ptes = (pmem_size - PMEM_BASE) / PAGESIZE;
+	physical_pages = malloc(sizeof(struct node*) * num_nodes);
+	page_table = malloc(sizeof(struct pte *) * num_ptes);
+	
+	num_pages_region_0 = (VMEM_0_LIMIT - VMEM_0_BASE ) / PAGESIZE;
+	region_0 = malloc(sizeof(struct pte) * num_pages_region_0);
+	struct pte* region_0_idle = malloc(sizeof(struct pte) * num_pages_region_0);
+
+	num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
+	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
+
+	char** idleArgs = malloc(sizeof(char*));
+	char** initArgs = malloc(sizeof(char*));
+	idle_pcb = malloc(sizeof(struct pcb));
+	init_pcb = malloc(sizeof(struct pcb));
+	idle_pcb->ctxp = malloc(sizeof(SavedContext));
+	init_pcb->ctxp = malloc(sizeof(SavedContext));
+	ExceptionStackFrame* idle_stack = malloc(sizeof(ExceptionStackFrame));
+	ExceptionStackFrame* init_stack = malloc(sizeof(ExceptionStackFrame));
+	temp = malloc(PAGESIZE);
+	idle_pcb->kernel_stack = idle_stack;
+	init_pcb->kernel_stack = init_stack;
+	idle_pcb->region_0 = region_0_idle;
+	init_pcb->region_0 = region_0;
+	idle_pcb->region_0_addr = region_0_idle;
+	idle_pcb->pid = 0;
+	idle_pcb->delayTick = 0;
+	init_pcb->delayTick = 0;
+	int h;
+	
+	for (h = 0; h < num_ptes; h++){
+		struct pte * entry = malloc(sizeof(struct pte));
+		entry->valid = 1;
+		entry->kprot = PROT_NONE;
+		entry->uprot = PROT_NONE;
+		entry->pfn = h;
+		page_table[h] = entry;
+	}
+	
+	int i;
+
+	for (i = 0; i < num_nodes; i++) {
+		struct node* new_page = malloc(sizeof(struct node*));
+		physical_pages[i] = new_page;
+		new_page->pfn = i;
+	}
+
+	int k;
+
+	for (k = 0; k < num_pages_region_0; k++) {
+		struct pte entry;
+		entry.valid = 1;
+		entry.kprot = (PROT_READ | PROT_WRITE) ;
+		entry.uprot = (PROT_NONE);
+		entry.pfn = k;
+		region_0[k] = entry;
+
+		struct pte entry_idle;
+		entry_idle.valid = 0;
+		// entry_init.kprot = (PROT_READ | PROT_WRITE) ;
+		// entry_init.uprot = (PROT_NONE);
+		// entry_init.pfn = -1;
+		// printf("init pfn: %d\n", entry_init.pfn);
+		region_0_idle[k] = entry_idle;
+	}
+
+	int a;
+
+	for (a = 0; a < MEM_INVALID_PAGES; a++) {
+		region_0[a].valid = 0;
+		region_0_idle[a].valid = 0;
+
+	}
+	int m;
+
+	for (m = 0; m < num_pages_region_1; m++) {
+		struct pte entry;
+		entry.valid = 0;
+		entry.kprot = PROT_NONE;
+		entry.uprot = PROT_NONE;
+		entry.pfn = m + num_pages_region_0;
+		region_1[m] = entry;
+	}
+	
+	int num_text_pages = ((unsigned long) &_etext - PMEM_1_BASE) / PAGESIZE;
+	
+	int j;
+	
+	int kernel_page_base = num_pages_region_0;
+	
+	for (j = kernel_page_base; j < num_text_pages + kernel_page_base; j++){
+		page_table[j]->valid = 1;
+		page_table[j]->kprot = (PROT_READ | PROT_EXEC);
+
+		struct pte entry = region_1[j - kernel_page_base];
+		entry.valid = 1;
+		entry.kprot = (PROT_READ | PROT_EXEC);
+		region_1[j - kernel_page_base] = entry;
+		printf("index: %d, pfn: %d\n", j-kernel_page_base, entry.pfn);
+	}
+
+	
+	int num_dbh_pages = ((unsigned long)(actual_brk - (void*) &_etext) / PAGESIZE);
+
+	int n;
+	printf("dbh: %d\n", num_dbh_pages);
+	
+	for (n = kernel_page_base + num_text_pages; n < kernel_page_base + num_text_pages + num_dbh_pages; n++){
+		page_table[n]->valid = 1;
+		page_table[n]->kprot = (PROT_READ | PROT_WRITE);
+		struct pte entry = region_1[n - kernel_page_base];
+		entry.valid = 1;
+		entry.kprot = (PROT_READ | PROT_WRITE);
+		region_1[n - kernel_page_base] = entry;
+		printf("index: %d, pfn: %d\n", n-kernel_page_base, entry.pfn);
+	}
+
+	current_spot = (unsigned long) 0;
+
+	int pfn = 0;
+	
+	// Only going one-direction
+	while (pfn < num_nodes) {
+		physical_pages[pfn]->base = (void*)current_spot;
+		current_spot += PAGESIZE;
+		pfn++;
+	}
+	physical_pages_length = pfn;
+	printf("physical pages: %d\n", physical_pages_length);
+	num_free_pages = physical_pages_length;
+	
+	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
+	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
+
+	//ENABLING VIRTUAL MEMORY!!!!!
+	WriteRegister(REG_VM_ENABLE, 1);
+	is_vmem = 1;
+
+TracePrintf(0,
+	    "Virtual memory enabled\n");
+	printf("WE STARTED!!!\n");
+	
+	idleArgs[0] = NULL; 
+	initArgs[0] = NULL; 
+	printf("Loading init...\n");
+
+	LoadProgram("init", initArgs, init_stack, init_pcb);
+	
+	init_pcb->region_0_addr = region_0;
+	init_pcb->pid = 1;
+	init_pcb->next = NULL;
+
+
+	printf("Loading idle...\n");
+
+	region_0 = region_0_idle;
+
+	// WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
+	// WriteRegister(REG_PTR0, (RCS421RegVal) region_0_init);
+	
+	cur_pcb = init_pcb;
+	
+	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, init_pcb->ctxp, (void *)init_pcb, (void *)idle_pcb);
+	LoadProgram("idle", idleArgs, idle_stack, idle_pcb);
+	printf("Switch %d\n", ctxtSwitch);
+	
+	
+	idle_pcb->next = init_pcb;
+
+	// LoadProgram("idle", idleArgs, idle_stack);
+	
+	// idle_pcb->region_0_addr = region_0;
+	// idle_pcb->pid = 0;
+	// idle_pcb->next = init_pcb;
+	
+	
+	printf("Finished loading!!!!\n");
+}
+
+
+int Brk(void *addr) {
+	printf("Doing Brk %p\n", addr);
+	void* new_addr = (void*) UP_TO_PAGE(addr);
+	void* cur_top_addr = (void*)(((unsigned long)cur_pcb->heapTopIndex + 1)* PAGESIZE);
+	if ((unsigned long)new_addr < cur_pcb->bottomOfHeapIndex * PAGESIZE) {
+		printf("error\n");
+		return ERROR;
+	}
+	else if ((unsigned long)new_addr > (cur_pcb->userStackBottomIndex - 1) * PAGESIZE) {
+		return ERROR;
+	}
+	else if (new_addr == cur_top_addr) {
+		printf("Nothing to brk\n");
+		return 0;
+	}
+	else {
+		if (new_addr < cur_top_addr) {
+			int num_to_free = (cur_top_addr - new_addr) / PAGESIZE;
+			int j;
+			printf("Freeing %d pages\n", num_to_free);
+			for (j = 0; j < num_to_free; j++) {
+				printf("Freeing page %d\n", cur_pcb->heapTopIndex);
+				int pfnToFree = cur_pcb->region_0[cur_pcb->heapTopIndex].pfn;
+				printf("pfn %d\n", pfnToFree);
+				freePhysicalPage(pfnToFree);
+				cur_pcb->heapTopIndex--;
+
+			}
+		}
+		else {
+			int num_to_alloc = (new_addr - cur_top_addr) / PAGESIZE;
+			int i;
+			printf("Allociating %d pages\n", num_to_alloc);
+			for (i = 0; i < num_to_alloc; i++) {
+				cur_pcb->heapTopIndex++;
+				printf("Aloc page %d\n", cur_pcb->heapTopIndex);
+				int newPage = allocPhysicalPage();
+				if (newPage == -1) {
+					return ERROR;
+				}
+				cur_pcb->region_0[cur_pcb->heapTopIndex].pfn = newPage;
+				cur_pcb->region_0[cur_pcb->heapTopIndex].valid = 1;
+		        cur_pcb->region_0[cur_pcb->heapTopIndex].kprot = PROT_READ | PROT_WRITE;
+    			cur_pcb->region_0[cur_pcb->heapTopIndex].uprot = PROT_READ | PROT_WRITE;
+				printf("pfn %d\n", newPage);
+
+			}
+		}
+	}		
+	return 0;
+}
+
+
+int SetKernelBrk(void *addr){
+	printf("Brk\n");
+	TracePrintf(0,"kernel break\n");
+
+	if (addr > (void*) VMEM_1_LIMIT){
+		TracePrintf(0, "addr > VMEM_1_LIMIT\n");
+		return -1;
+	}
+	if (is_vmem) {
+		void* new_brk =	new_brk = (void*) UP_TO_PAGE(addr);
+		if (new_brk < actual_brk){
+			return ERROR;
+		}
+		else if (new_brk > actual_brk){
+			printf("from %p to %p\n", actual_brk, addr);
+			
+			int num_to_alloc = (new_brk - actual_brk) / PAGESIZE;
+			printf("alloc-ing %d pages\n", num_to_alloc);
+			int j;
+			for (j=0; j < num_to_alloc; j++) {
+				int index = ((unsigned long) (actual_brk) / PAGESIZE + j ) - num_pages_region_0; 
+				printf("index: %d\n", index);
+				struct pte entry = region_1[index];
+				entry.valid = 1;
+				entry.kprot = (PROT_READ | PROT_WRITE);
+				region_1[index] = entry;
+			}
+			actual_brk = new_brk;
+		}
+	}
+	else {
+		actual_brk = addr;
+	}
+	return 0;
+}
+
