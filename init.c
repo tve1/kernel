@@ -7,7 +7,7 @@
 #include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
-int main(){
+int main(){	
 	printf("Starting init\n");
 	char* str = malloc(10000);
 	char* str2 = "the quick bronw fox jusmped over the lzy dog";

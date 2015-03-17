@@ -8,6 +8,7 @@ int main(){
 	while (1){
 		printf("Process ID is: %d\n", GetPid());
 		Pause();
+	Fork();
 	}
 	return 0;
 }

@@ -32,6 +32,11 @@ struct pcb {
  	int userStackBottomIndex;
 };
 
+struct pte_wrapper {
+	struct pte* pte;
+	int pfn; 
+};
+
 
 struct pcb* idle_pcb;
 struct pcb* init_pcb;
@@ -55,6 +60,8 @@ struct pcb* cur_pcb;
 void* temp;
 int tick = 0;
 int is_vmem = 0;
+int topIndex;
+int lastPid;
 
 ExceptionStackFrame *kernel_frame;
 unsigned int allocPhysicalPage(){
@@ -126,7 +133,6 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 		printf("flush2\n");
 		WriteRegister(REG_PTR0, (RCS421RegVal) pcb1->region_0);
 		printf("write2\n");
-		
 	}
 
 	memcpy(pcb2->ctxp, ctxp, sizeof(SavedContext));
@@ -169,6 +175,7 @@ struct pcb* getNextProcess() {
 	}
 	return nextProcess;
 }
+
 void doAContextSwitch() {
 	int ctxtSwitch;
 	struct pcb* nextPcb = getNextProcess(); 
@@ -456,7 +463,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
      */
 
     // >>>> Leave the first MEM_INVALID_PAGES number of PTEs in the
-    // >>>> Region 0 page table unused (and thus invalid)
+    // >>>> Region 0 page table unused (and thus invalid)MP
 
     int a;
     int bottom = 0;
@@ -704,6 +711,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	struct pte* region_0_idle = malloc(sizeof(struct pte) * num_pages_region_0);
 
 	num_pages_region_1 = (VMEM_1_LIMIT - VMEM_1_BASE ) / PAGESIZE;
+	topIndex = num_pages_region_1 - 1; 
 	region_1 = malloc(sizeof(struct pte) * num_pages_region_1);
 
 	char** idleArgs = malloc(sizeof(char*));
@@ -845,6 +853,7 @@ TracePrintf(0,
 	
 	init_pcb->region_0_addr = region_0;
 	init_pcb->pid = 1;
+	lastPid = 1;
 	init_pcb->next = NULL;
 
 
@@ -874,15 +883,70 @@ TracePrintf(0,
 	printf("Finished loading!!!!\n");
 }
 
-struct pte*  allocNewRegion0() {
+struct pte_wrapper  allocNewRegion0() {
 		// if can use second half do that
 	//else
-	// int pfn = allocPhysicalPage();
-	// region_1[topIndex].pfn = pfn;
-	// struct pte* new_region0 = region_1[topIndex];
+	int pfn = allocPhysicalPage();
+
+	struct pte* new_region0 = (struct pte*) &region_1[topIndex];
+	struct pte_wrapper wrapper;
+	wrapper.pfn = pfn;
+	wrapper.pte = new_region0;
+	topIndex--;
+	return wrapper;
 }
 
 int Fork() {
+	printf("Forking\n");
+	struct pte_wrapper wrapper = allocNewRegion0();
+	struct pte* child_region0 = wrapper.pte; 
+
+	struct pcb* child_pcb = malloc(sizeof(struct pcb));
+	child_pcb->region_0_addr = (void*) ((unsigned long) wrapper.pfn * PAGESIZE);
+	child_pcb->pid = ++lastPid;
+	child_pcb->region_0 = child_region0;
+	child_pcb->delayTick = 0;
+	child_pcb->heapTopIndex = cur_pcb->heapTopIndex;
+	child_pcb->bottomOfHeapIndex = cur_pcb->bottomOfHeapIndex;
+	child_pcb->userStackTopIndex = cur_pcb->userStackTopIndex;
+	child_pcb->userStackBottomIndex = cur_pcb->userStackBottomIndex;
+
+	printf("init child_pcb\n");
+
+
+
+	int i;
+	for (i = 0; i < num_pages_region_0; i++){
+		printf("Allocating page %d\n", i);
+		child_region0[i].valid = cur_pcb->region_0[i].valid;
+		child_region0[i].kprot = cur_pcb->region_0[i].kprot;
+		child_region0[i].uprot = cur_pcb->region_0[i].uprot;
+		if (cur_pcb->region_0[i].valid) {
+			printf("way stuff %p\n", child_pcb->region_0_addr);
+			child_region0[i].pfn = allocPhysicalPage();
+			printf("abc\n");
+			memcpy(temp, (void*) VMEM_0_BASE + i*PAGESIZE, PAGESIZE);
+			printf("123\n"); 
+			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
+			printf("do re mi %p\n", (void*) child_pcb->region_0_addr);
+			WriteRegister(REG_PTR0, (RCS421RegVal) child_pcb->region_0_addr);
+			printf("you and me\n");
+			printf("%p\n", (void*) (VMEM_0_BASE + i*PAGESIZE));
+			memcpy((void*) VMEM_0_BASE + i*PAGESIZE, temp, PAGESIZE);
+			printf("that's how easy love can be\n");
+			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
+			printf("abc2\n");
+			WriteRegister(REG_PTR0, (RCS421RegVal) cur_pcb->region_0_addr);
+			printf("way stuff %p\n", cur_pcb->region_0_addr);
+
+		}
+	}
+	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
+	struct pcb* temp = cur_pcb->next;
+	cur_pcb->next = child_pcb;
+	child_pcb->next = temp;
+
+		printf("end\n");
 
 	return 0;
 }
