@@ -26,7 +26,7 @@
 #	if you have a file named test1.c in this directory.
 #
 
-ALL = yalnix idle init
+ALL = yalnix idle init mm
 #test1 test2 test3
 
 #

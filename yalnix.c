@@ -34,7 +34,8 @@ struct pcb {
 
 struct pte_wrapper {
 	struct pte* pte;
-	int pfn; 
+	int pfn;
+	void* phys_addr; 
 };
 
 
@@ -159,6 +160,10 @@ void trapKernel(ExceptionStackFrame *frame){
 	else if (frame->code == YALNIX_FORK) {
 		frame->regs[0] = Fork();
 		// printf("frame->regs[0] %d\n", frame->regs[0]);
+	}
+	else if(frame->code == YALNIX_EXEC) {
+		printf("exec\n");
+		frame->regs[0] = Exec((char*) frame->regs[1], (char**) frame->regs[2]);
 	}
 } 
 
@@ -295,7 +300,7 @@ int GetPid(){
  *  in this case.
  */
 int
-LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* pcb_in)
+LoadProgram(char *name, char **args, struct pcb* pcb_in)
 {
     int fd;
     int status;
@@ -426,7 +431,6 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
     // >>>> Initialize sp for the current process to (char *)cpp.
     // >>>> The value of cpp was initialized above.
     kernel_frame->sp = (void*) cpp;
-    stackIn->sp = (void*) cpp;
 
 
 
@@ -446,9 +450,9 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
         if (z >= (KERNEL_STACK_BASE / PAGESIZE) && z < (KERNEL_STACK_LIMIT / PAGESIZE)){
             continue;
         }    
-        if (region_0[z].valid){
-            freePhysicalPage(region_0[z].pfn);
-            region_0[z].valid = 0;
+        if (pcb_in->region_0[z].valid){
+            freePhysicalPage(pcb_in->region_0[z].pfn);
+            pcb_in->region_0[z].valid = 0;
         } 
     }
 	TracePrintf(0,
@@ -470,7 +474,7 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
     int top = MEM_INVALID_PAGES;
 
     for (a = bottom; a < top; a++) {
-        region_0[a].valid = 0;
+        pcb_in->region_0[a].valid = 0;
     }
     bottom = top;
     top += text_npg;
@@ -488,10 +492,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
     int b;
 
     for (b = bottom; b < top; b++){
-        region_0[b].valid = 1;
-        region_0[b].kprot = PROT_READ | PROT_WRITE;
-        region_0[b].uprot = PROT_READ | PROT_EXEC;
-        region_0[b].pfn   = allocPhysicalPage();
+        pcb_in->region_0[b].valid = 1;
+        pcb_in->region_0[b].kprot = PROT_READ | PROT_WRITE;
+        pcb_in->region_0[b].uprot = PROT_READ | PROT_EXEC;
+        pcb_in->region_0[b].pfn   = allocPhysicalPage();
     }
     bottom = top;
     top += data_bss_npg;
@@ -511,10 +515,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
     int c;
 
     for(c = bottom; c < top; c++){
-        region_0[c].valid = 1;
-        region_0[c].kprot = PROT_READ | PROT_WRITE;
-        region_0[c].uprot = PROT_READ | PROT_WRITE;
-        region_0[c].pfn   = allocPhysicalPage();
+        pcb_in->region_0[c].valid = 1;
+        pcb_in->region_0[c].kprot = PROT_READ | PROT_WRITE;
+        pcb_in->region_0[c].uprot = PROT_READ | PROT_WRITE;
+        pcb_in->region_0[c].pfn   = allocPhysicalPage();
     }
     bottom = top;
     top += stack_npg;
@@ -534,10 +538,10 @@ LoadProgram(char *name, char **args, ExceptionStackFrame* stackIn, struct pcb* p
 	int user_stack_page = USER_STACK_LIMIT/PAGESIZE;
     int d;
     for (d = user_stack_page - stack_npg; d < user_stack_page; d++){
-        region_0[d].valid = 1;
-        region_0[d].kprot = PROT_READ | PROT_WRITE;
-        region_0[d].uprot = PROT_READ | PROT_WRITE;
-        region_0[d].pfn   = allocPhysicalPage();
+        pcb_in->region_0[d].valid = 1;
+        pcb_in->region_0[d].kprot = PROT_READ | PROT_WRITE;
+        pcb_in->region_0[d].uprot = PROT_READ | PROT_WRITE;
+        pcb_in->region_0[d].pfn   = allocPhysicalPage();
     }
     pcb_in->userStackBottomIndex = user_stack_page - stack_npg;
     pcb_in->userStackTopIndex = user_stack_page - 1;
@@ -583,7 +587,7 @@ TracePrintf(0,
 
     int e;
     for (e = MEM_INVALID_PAGES; e < MEM_INVALID_PAGES + text_npg; e++){
-        region_0[e].kprot = PROT_READ | PROT_EXEC;
+        pcb_in->region_0[e].kprot = PROT_READ | PROT_EXEC;
     }
 	TracePrintf(0,
 	    "e\n");
@@ -601,7 +605,6 @@ TracePrintf(0,
      */
     // >>>> Initialize pc for the current process to (void *)li.entry
     kernel_frame->pc = li.entry;
-    stackIn->pc = li.entry;
 	    TracePrintf(0, "starting pc is %p\n", kernel_frame->pc);
     /*
      *  Now, finally, build the argument list on the new stack.
@@ -661,10 +664,8 @@ TracePrintf(0,
     int f;
     for (f = 0; f < NUM_REGS; f++){
         kernel_frame->regs[f] = 0;
-        stackIn->regs[f] = 0;
     }
-    kernel_frame->psr = 0;
-    stackIn->psr = 0;     
+    kernel_frame->psr = 0;  
 	TracePrintf(0,
 	    "f");
 
@@ -849,7 +850,7 @@ TracePrintf(0,
 	initArgs[0] = NULL; 
 	printf("Loading init...\n");
 
-	LoadProgram("init", initArgs, init_stack, init_pcb);
+	LoadProgram("init", initArgs, init_pcb);
 	
 	init_pcb->region_0_addr = region_0;
 	init_pcb->pid = 1;
@@ -867,7 +868,7 @@ TracePrintf(0,
 	cur_pcb = init_pcb;
 	
 	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, init_pcb->ctxp, (void *)init_pcb, (void *)idle_pcb);
-	LoadProgram("idle", idleArgs, idle_stack, idle_pcb);
+	LoadProgram("idle", idleArgs, idle_pcb);
 	printf("Switch %d\n", ctxtSwitch);
 	
 	
@@ -884,8 +885,13 @@ TracePrintf(0,
 }
 
 struct pte_wrapper  allocNewRegion0() {
-		// if can use second half do that
+	//use second half 
 	//else
+	if ((void*) ( (unsigned long) topIndex*PAGESIZE+VMEM_1_BASE) < actual_brk){
+		struct pte_wrapper err_wrapper;
+		err_wrapper.pfn = -1;
+		return err_wrapper;
+	}
 	int pfn = allocPhysicalPage();
 	printf("PFN %d\n", pfn);
 	region_1[topIndex].valid = 1;
@@ -893,6 +899,7 @@ struct pte_wrapper  allocNewRegion0() {
 	region_1[topIndex].kprot = (PROT_READ | PROT_WRITE);
 	struct pte_wrapper wrapper;
 	wrapper.pfn = pfn;
+	wrapper.phys_addr = (void*) ((unsigned long) wrapper.pfn * PAGESIZE);
 	struct pte* new_region0 = (struct pte*) ((unsigned long)VMEM_1_BASE + (unsigned long)topIndex *PAGESIZE);
 	printf("new region 0 %p topIndex %d region1[topIndex] \n", new_region0, topIndex );
 	wrapper.pte = new_region0;
@@ -903,10 +910,13 @@ struct pte_wrapper  allocNewRegion0() {
 int Fork() {
 	printf("Forking\n");
 	struct pte_wrapper wrapper = allocNewRegion0();
+	if (wrapper.pfn == -1){
+		return ERROR;
+	}
 	struct pte* child_region0 = wrapper.pte; 
 
 	struct pcb* child_pcb = malloc(sizeof(struct pcb));
-	child_pcb->region_0_addr = (void*) ((unsigned long) wrapper.pfn * PAGESIZE);
+	child_pcb->region_0_addr = wrapper.phys_addr;
 	child_pcb->pid = ++lastPid;
 	child_pcb->region_0 = child_region0;
 	child_pcb->delayTick = 0;
@@ -930,23 +940,15 @@ int Fork() {
 		child_region0[i].uprot = cur_pcb->region_0[i].uprot;
 		// printf("asdf %d\n", i);
 		if (cur_pcb->region_0[i].valid) {  
-			printf("way stuff %p\n", (void*)i);
 			child_pcb->region_0[i].pfn = allocPhysicalPage();
 			child_region0[i].kprot = (PROT_WRITE | PROT_READ);
-			printf("abc %d\n", child_region0[i].pfn);
 			memcpy(temp, (void*) VMEM_0_BASE + i*PAGESIZE, PAGESIZE);
 			// printf("123\n"); 
 			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
-			printf("do re mi %p\n", (void*) child_pcb->region_0_addr);
 			WriteRegister(REG_PTR0, (RCS421RegVal) child_pcb->region_0_addr);
-			printf("you and me\n");
-			printf("%p\n", (void*) (VMEM_0_BASE + i*PAGESIZE));
 			memcpy((void*) VMEM_0_BASE + i*PAGESIZE, temp, PAGESIZE);
-			printf("that's how easy love can be\n");
 			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
-			printf("abc2\n");
 			WriteRegister(REG_PTR0, (RCS421RegVal) cur_pcb->region_0_addr);
-			printf("way stuff %p\n", cur_pcb->region_0_addr);
 
 		}
 		printf("cool %p\n", child_region0);
@@ -958,8 +960,17 @@ int Fork() {
 	child_pcb->next = temp;
 
 		printf("end\n");
+	if (cur_pcb->pid == child_pcb->pid){
+		return child_pcb->pid;
+	}
 
 	return 0;
+}
+
+int Exec(char* filename, char **argvec){
+	printf("executing %s\n", filename);
+	return LoadProgram(filename, argvec, cur_pcb);
+
 }
 
 int Brk(void *addr) {
@@ -1025,7 +1036,7 @@ int SetKernelBrk(void *addr){
 	}
 	if (is_vmem) {
 		void* new_brk =	new_brk = (void*) UP_TO_PAGE(addr);
-		if (new_brk < actual_brk){
+		if (new_brk < actual_brk || (void*) ((unsigned long)topIndex*PAGESIZE+VMEM_1_BASE) < new_brk){
 			return ERROR;
 		}
 		else if (new_brk > actual_brk){
