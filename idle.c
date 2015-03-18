@@ -5,10 +5,11 @@
 
 int main(){
 	printf("Starting idle\n");
-	while (1){
-		printf("Process ID is: %d\n", GetPid());
-		Pause();
+	Pause();
 	Fork();
+	while (1){
+		Pause();
+		printf("Process ID is: %d\n", GetPid());
 	}
 	return 0;
 }

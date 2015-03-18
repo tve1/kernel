@@ -120,7 +120,7 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 		printf("copy1\n");
 		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
 		printf("flush1\n");
-		WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0);
+		WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
 		printf("write1\n");
 		// printf("%p\n", )
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].valid = 1;
@@ -131,12 +131,12 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 		printf("copy2\n");
 		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
 		printf("flush2\n");
-		WriteRegister(REG_PTR0, (RCS421RegVal) pcb1->region_0);
+		WriteRegister(REG_PTR0, (RCS421RegVal) pcb1->region_0_addr);
 		printf("write2\n");
 	}
-
+	printf("fic %p %p\n", ctxp, pcb2->ctxp);
 	memcpy(pcb2->ctxp, ctxp, sizeof(SavedContext));
-
+	printf("toria\n");
 
 	return ctxp;
 }
@@ -887,10 +887,14 @@ struct pte_wrapper  allocNewRegion0() {
 		// if can use second half do that
 	//else
 	int pfn = allocPhysicalPage();
-
-	struct pte* new_region0 = (struct pte*) &region_1[topIndex];
+	printf("PFN %d\n", pfn);
+	region_1[topIndex].valid = 1;
+	region_1[topIndex].pfn = pfn;
+	region_1[topIndex].kprot = (PROT_READ | PROT_WRITE);
 	struct pte_wrapper wrapper;
 	wrapper.pfn = pfn;
+	struct pte* new_region0 = (struct pte*) ((unsigned long)VMEM_1_BASE + (unsigned long)topIndex *PAGESIZE);
+	printf("new region 0 %p topIndex %d region1[topIndex] \n", new_region0, topIndex );
 	wrapper.pte = new_region0;
 	topIndex--;
 	return wrapper;
@@ -910,23 +914,28 @@ int Fork() {
 	child_pcb->bottomOfHeapIndex = cur_pcb->bottomOfHeapIndex;
 	child_pcb->userStackTopIndex = cur_pcb->userStackTopIndex;
 	child_pcb->userStackBottomIndex = cur_pcb->userStackBottomIndex;
+	child_pcb->ctxp = malloc(sizeof(SavedContext));
 
 	printf("init child_pcb\n");
 
 
 
 	int i;
-	for (i = 0; i < num_pages_region_0; i++){
+	for (i = 0; i < num_pages_region_0 - KERNEL_STACK_PAGES; i++){
 		printf("Allocating page %d\n", i);
 		child_region0[i].valid = cur_pcb->region_0[i].valid;
+		// printf("dabc %d\n", i);
 		child_region0[i].kprot = cur_pcb->region_0[i].kprot;
+		// printf("fdsa %d\n", i);
 		child_region0[i].uprot = cur_pcb->region_0[i].uprot;
-		if (cur_pcb->region_0[i].valid) {
-			printf("way stuff %p\n", child_pcb->region_0_addr);
-			child_region0[i].pfn = allocPhysicalPage();
-			printf("abc\n");
+		// printf("asdf %d\n", i);
+		if (cur_pcb->region_0[i].valid) {  
+			printf("way stuff %p\n", (void*)i);
+			child_pcb->region_0[i].pfn = allocPhysicalPage();
+			child_region0[i].kprot = (PROT_WRITE | PROT_READ);
+			printf("abc %d\n", child_region0[i].pfn);
 			memcpy(temp, (void*) VMEM_0_BASE + i*PAGESIZE, PAGESIZE);
-			printf("123\n"); 
+			// printf("123\n"); 
 			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
 			printf("do re mi %p\n", (void*) child_pcb->region_0_addr);
 			WriteRegister(REG_PTR0, (RCS421RegVal) child_pcb->region_0_addr);
@@ -940,6 +949,8 @@ int Fork() {
 			printf("way stuff %p\n", cur_pcb->region_0_addr);
 
 		}
+		printf("cool %p\n", child_region0);
+		
 	}
 	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
 	struct pcb* temp = cur_pcb->next;
