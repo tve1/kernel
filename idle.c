@@ -15,7 +15,7 @@ int main(){
 	}
 	while (1){
 		Pause();
-		printf("Process ID is: %d\n", GetPid());
+		printf("Process ID is: %d \n", GetPid());
 	}
 	return 0;
 }

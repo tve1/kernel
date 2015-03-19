@@ -23,6 +23,7 @@ struct pcb {
 	void* region_0_addr;
 	int pid;
 	struct pcb* next;
+	struct pcb* prev;
 	ExceptionStackFrame* kernel_stack;
  	struct pte* region_0;
  	int delayTick;
@@ -30,12 +31,20 @@ struct pcb {
  	int bottomOfHeapIndex;
  	int userStackTopIndex;
  	int userStackBottomIndex;
+ 	struct exited_node* exited_children_queue;
+ 	struct pcb* parent_pcb;
 };
 
 struct pte_wrapper {
 	struct pte* pte;
-	int pfn;
-	void* phys_addr; 
+	int pfn; 
+	void* phys_addr;
+};
+
+struct exited_node {
+	struct exited_node* next;
+	int pid; 
+	int status; 
 };
 
 
@@ -162,8 +171,10 @@ void trapKernel(ExceptionStackFrame *frame){
 		// printf("frame->regs[0] %d\n", frame->regs[0]);
 	}
 	else if(frame->code == YALNIX_EXEC) {
-		printf("exec\n");
 		frame->regs[0] = Exec((char*) frame->regs[1], (char**) frame->regs[2]);
+	}
+	else if(frame->code == YALNIX_EXIT) {
+		Exit((int) frame->regs[1]);
 	}
 } 
 
@@ -204,13 +215,13 @@ void subtractDelayTicks() {
 }
 
 void trapClock(ExceptionStackFrame *frame){
-	TracePrintf(0,"trapClock"); 
+	TracePrintf(0,"trapClock %d\n", tick); 
 	subtractDelayTicks();
 	if (tick == 0)
 		tick++;
-	else if (tick == 1){
+	else if (tick >= 1){
 		doAContextSwitch();
-		tick--;
+		tick = 0;
 	}		
 }
 
@@ -732,6 +743,11 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	idle_pcb->pid = 0;
 	idle_pcb->delayTick = 0;
 	init_pcb->delayTick = 0;
+	init_pcb->parent_pcb = NULL;
+	idle_pcb->parent_pcb = NULL;
+	init_pcb->exited_children_queue = NULL;
+	idle_pcb->exited_children_queue = NULL;
+
 	int h;
 	
 	for (h = 0; h < num_ptes; h++){
@@ -873,7 +889,8 @@ TracePrintf(0,
 	
 	
 	idle_pcb->next = init_pcb;
-
+	idle_pcb->prev = NULL;
+	init_pcb->prev = idle_pcb;
 	// LoadProgram("idle", idleArgs, idle_stack);
 	
 	// idle_pcb->region_0_addr = region_0;
@@ -907,6 +924,8 @@ struct pte_wrapper  allocNewRegion0() {
 	return wrapper;
 }
 
+
+
 int Fork() {
 	printf("Forking\n");
 	struct pte_wrapper wrapper = allocNewRegion0();
@@ -925,7 +944,10 @@ int Fork() {
 	child_pcb->userStackTopIndex = cur_pcb->userStackTopIndex;
 	child_pcb->userStackBottomIndex = cur_pcb->userStackBottomIndex;
 	child_pcb->ctxp = malloc(sizeof(SavedContext));
+	child_pcb->exited_children_queue = NULL;
+	child_pcb->parent_pcb = cur_pcb;
 
+	
 	printf("init child_pcb\n");
 
 
@@ -953,18 +975,55 @@ int Fork() {
 		}
 		printf("cool %p\n", child_region0);
 		
+
 	}
-	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
 	struct pcb* temp = cur_pcb->next;
 	cur_pcb->next = child_pcb;
+	child_pcb->prev = cur_pcb;
 	child_pcb->next = temp;
-
+	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
 		printf("end\n");
 	if (cur_pcb->pid == child_pcb->pid){
 		return child_pcb->pid;
 	}
 
 	return 0;
+}
+
+void Exit(int status) {
+	TracePrintf(2, "exiting child %d\n", cur_pcb->pid);
+		
+	if (cur_pcb->parent_pcb != NULL) {
+		struct exited_node* exited_node= malloc(sizeof(struct exited_node));
+		exited_node->status = status;
+		exited_node->pid = cur_pcb->pid;
+		exited_node->next = NULL;
+		struct exited_node* last_node = cur_pcb->parent_pcb->exited_children_queue;
+		if (last_node == NULL) {
+			cur_pcb->parent_pcb->exited_children_queue = exited_node;
+		}
+		else {
+			while (last_node->next != NULL) {
+				last_node = last_node->next;
+			}
+			last_node->next = exited_node;
+		}
+
+	}	
+	struct pcb* p = cur_pcb->prev;
+	struct pcb* n = cur_pcb->next;	
+	p->next = n;
+	n->prev = p;
+
+	free(cur_pcb->ctxp);
+	// free(cur_pcb->region_0) Do optimizaiton stuff here.
+	while (cur_pcb->exited_children_queue != NULL) {
+		struct exited_node* next = cur_pcb->exited_children_queue->next;
+		free(cur_pcb->exited_children_queue);
+		cur_pcb->exited_children_queue = next;
+	}
+	free(cur_pcb);
+	doAContextSwitch();
 }
 
 int Exec(char* filename, char **argvec){
@@ -974,7 +1033,7 @@ int Exec(char* filename, char **argvec){
 }
 
 int Brk(void *addr) {
-	printf("Doing Brk %p\n", addr);
+	TracePrintf(0, "Doing Brk %p\n", addr);
 	void* new_addr = (void*) UP_TO_PAGE(addr);
 	void* cur_top_addr = (void*)(((unsigned long)cur_pcb->heapTopIndex + 1)* PAGESIZE);
 	if ((unsigned long)new_addr < cur_pcb->bottomOfHeapIndex * PAGESIZE) {
@@ -985,18 +1044,14 @@ int Brk(void *addr) {
 		return ERROR;
 	}
 	else if (new_addr == cur_top_addr) {
-		printf("Nothing to brk\n");
 		return 0;
 	}
 	else {
 		if (new_addr < cur_top_addr) {
 			int num_to_free = (cur_top_addr - new_addr) / PAGESIZE;
 			int j;
-			printf("Freeing %d pages\n", num_to_free);
 			for (j = 0; j < num_to_free; j++) {
-				printf("Freeing page %d\n", cur_pcb->heapTopIndex);
 				int pfnToFree = cur_pcb->region_0[cur_pcb->heapTopIndex].pfn;
-				printf("pfn %d\n", pfnToFree);
 				freePhysicalPage(pfnToFree);
 				cur_pcb->heapTopIndex--;
 
@@ -1005,10 +1060,8 @@ int Brk(void *addr) {
 		else {
 			int num_to_alloc = (new_addr - cur_top_addr) / PAGESIZE;
 			int i;
-			printf("Allociating %d pages\n", num_to_alloc);
 			for (i = 0; i < num_to_alloc; i++) {
 				cur_pcb->heapTopIndex++;
-				printf("Aloc page %d\n", cur_pcb->heapTopIndex);
 				int newPage = allocPhysicalPage();
 				if (newPage == -1) {
 					return ERROR;
@@ -1017,7 +1070,6 @@ int Brk(void *addr) {
 				cur_pcb->region_0[cur_pcb->heapTopIndex].valid = 1;
 		        cur_pcb->region_0[cur_pcb->heapTopIndex].kprot = PROT_READ | PROT_WRITE;
     			cur_pcb->region_0[cur_pcb->heapTopIndex].uprot = PROT_READ | PROT_WRITE;
-				printf("pfn %d\n", newPage);
 
 			}
 		}
