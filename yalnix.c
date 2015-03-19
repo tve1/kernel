@@ -883,9 +883,8 @@ TracePrintf(0,
 	
 	cur_pcb = init_pcb;
 	
-	int ctxtSwitch = ContextSwitch(MyFirstSwitchFunc, init_pcb->ctxp, (void *)init_pcb, (void *)idle_pcb);
+	ContextSwitch(MyFirstSwitchFunc, init_pcb->ctxp, (void *)init_pcb, (void *)idle_pcb);
 	LoadProgram("idle", idleArgs, idle_pcb);
-	printf("Switch %d\n", ctxtSwitch);
 	
 	
 	idle_pcb->next = init_pcb;
@@ -910,15 +909,15 @@ struct pte_wrapper  allocNewRegion0() {
 		return err_wrapper;
 	}
 	int pfn = allocPhysicalPage();
-	printf("PFN %d\n", pfn);
+
 	region_1[topIndex].valid = 1;
 	region_1[topIndex].pfn = pfn;
 	region_1[topIndex].kprot = (PROT_READ | PROT_WRITE);
+	
 	struct pte_wrapper wrapper;
 	wrapper.pfn = pfn;
 	wrapper.phys_addr = (void*) ((unsigned long) wrapper.pfn * PAGESIZE);
 	struct pte* new_region0 = (struct pte*) ((unsigned long)VMEM_1_BASE + (unsigned long)topIndex *PAGESIZE);
-	printf("new region 0 %p topIndex %d region1[topIndex] \n", new_region0, topIndex );
 	wrapper.pte = new_region0;
 	topIndex--;
 	return wrapper;
@@ -927,7 +926,7 @@ struct pte_wrapper  allocNewRegion0() {
 
 
 int Fork() {
-	printf("Forking\n");
+	TracePrintf(0, "Fork\n");
 	struct pte_wrapper wrapper = allocNewRegion0();
 	if (wrapper.pfn == -1){
 		return ERROR;
@@ -947,34 +946,27 @@ int Fork() {
 	child_pcb->exited_children_queue = NULL;
 	child_pcb->parent_pcb = cur_pcb;
 
-	
-	printf("init child_pcb\n");
 
 
 
 	int i;
 	for (i = 0; i < num_pages_region_0 - KERNEL_STACK_PAGES; i++){
-		printf("Allocating page %d\n", i);
 		child_region0[i].valid = cur_pcb->region_0[i].valid;
-		// printf("dabc %d\n", i);
 		child_region0[i].kprot = cur_pcb->region_0[i].kprot;
-		// printf("fdsa %d\n", i);
 		child_region0[i].uprot = cur_pcb->region_0[i].uprot;
-		// printf("asdf %d\n", i);
+
 		if (cur_pcb->region_0[i].valid) {  
 			child_pcb->region_0[i].pfn = allocPhysicalPage();
 			child_region0[i].kprot = (PROT_WRITE | PROT_READ);
+
 			memcpy(temp, (void*) VMEM_0_BASE + i*PAGESIZE, PAGESIZE);
-			// printf("123\n"); 
 			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
 			WriteRegister(REG_PTR0, (RCS421RegVal) child_pcb->region_0_addr);
+
 			memcpy((void*) VMEM_0_BASE + i*PAGESIZE, temp, PAGESIZE);
 			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
 			WriteRegister(REG_PTR0, (RCS421RegVal) cur_pcb->region_0_addr);
-
-		}
-		printf("cool %p\n", child_region0);
-		
+		}		
 
 	}
 	struct pcb* temp = cur_pcb->next;
@@ -982,12 +974,17 @@ int Fork() {
 	child_pcb->prev = cur_pcb;
 	child_pcb->next = temp;
 	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
-		printf("end\n");
+		
 	if (cur_pcb->pid == child_pcb->pid){
 		return child_pcb->pid;
 	}
 
 	return 0;
+}
+
+int Wait(int* status_ptr) {
+	// TODO after ball pit
+	return -1;
 }
 
 void Exit(int status) {
@@ -1023,11 +1020,12 @@ void Exit(int status) {
 		cur_pcb->exited_children_queue = next;
 	}
 	free(cur_pcb);
-	doAContextSwitch();
+	doAContextSwitch();	
+
 }
 
 int Exec(char* filename, char **argvec){
-	printf("executing %s\n", filename);
+	TracePrintf(0, "executing %s\n", filename);
 	return LoadProgram(filename, argvec, cur_pcb);
 
 }
@@ -1092,14 +1090,11 @@ int SetKernelBrk(void *addr){
 			return ERROR;
 		}
 		else if (new_brk > actual_brk){
-			printf("from %p to %p\n", actual_brk, addr);
 			
 			int num_to_alloc = (new_brk - actual_brk) / PAGESIZE;
-			printf("alloc-ing %d pages\n", num_to_alloc);
 			int j;
 			for (j=0; j < num_to_alloc; j++) {
 				int index = ((unsigned long) (actual_brk) / PAGESIZE + j ) - num_pages_region_0; 
-				printf("index: %d\n", index);
 				struct pte entry = region_1[index];
 				entry.valid = 1;
 				entry.kprot = (PROT_READ | PROT_WRITE);
