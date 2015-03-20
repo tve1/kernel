@@ -177,14 +177,19 @@ void trapKernel(ExceptionStackFrame *frame){
 
 struct pcb* getNextProcess() {
 	struct pcb* nextProcess = cur_pcb->next;
+	printf("next %p\n", nextProcess);
 	if (nextProcess == NULL) {
 		nextProcess = idle_pcb;
 	}
-	while (nextProcess->delayTick > 0) {
+		printf("anext %d\n", nextProcess->pid);
+	while (nextProcess->delayTick > 0) {	
+		printf("next %p\n", nextProcess);
 		nextProcess = nextProcess->next;
 		if (nextProcess == NULL) {
 			nextProcess = idle_pcb;
 		}
+		printf("wnext %d\n", nextProcess->pid);
+
 	}
 	return nextProcess;
 }
@@ -192,7 +197,8 @@ struct pcb* getNextProcess() {
 void doAContextSwitch() {
 	int ctxtSwitch;
 	struct pcb* nextPcb = getNextProcess(); 
-	TracePrintf(1, "A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, nextPcb->pid);
+	printf("next pcb %p %d\n", nextPcb, nextPcb->pid);
+	TracePrintf(1, "A: cur_pcb %d,next %d\n", cur_pcb->pid, nextPcb->pid);
 	ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)nextPcb);
 
 }
@@ -965,6 +971,7 @@ int Fork() {
 	cur_pcb->next = child_pcb;
 	child_pcb->prev = cur_pcb;
 	child_pcb->next = temp;
+	temp->prev = child_pcb;
 	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
 		
 	if (cur_pcb->pid == child_pcb->pid){
@@ -1023,13 +1030,14 @@ void Exit(int status) {
 	if (cur_pcb-> next != NULL){
 		n = cur_pcb->next;	
 	}
+	printf("foo %p %p\n", (void*) p, (void*) n);
 	if (p != NULL) {
 		p->next = n;
 	}
 	if (n != NULL){
 		n->prev = p;
 	}
-	free(cur_pcb->ctxp);
+	// free(cur_pcb->ctxp);
 	// free(cur_pcb->region_0) Do optimizaiton stuff here.
 	while (cur_pcb->exited_children_queue != NULL) {
 		struct exited_node* next = NULL;

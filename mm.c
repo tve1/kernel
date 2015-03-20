@@ -4,6 +4,7 @@
 #include <comp421/hardware.h>
 
 int main(){
+	printf("starting mm\n");
 	int x = 0;
 	Pause();
 	Pause();

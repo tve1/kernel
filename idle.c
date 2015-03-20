@@ -17,6 +17,7 @@ int main(){
 	}
 	int b = Wait(ptr);
 	printf("B: %d\n", b);
+	printf("status: %d\n", ptr[0]);
 	printf("THIS PID:%d\n",pid);
 	
 	int i = 20;
