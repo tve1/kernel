@@ -6,6 +6,9 @@
 int main(){
 	int x = 0;
 	Pause();
+	Pause();
+	Pause();
+	Pause();
 	printf("Process ID is: %d\n", GetPid());
 	x++;
 	printf("hell yeah %d\n",x);

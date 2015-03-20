@@ -10,14 +10,15 @@ int main(){
 	printf("Starting idle\n");
 	Pause();
 	int pid = Fork();
-	int b = Wait(ptr);
-	printf("B: %d\n", b);
-	printf("THIS PID:%d\n",pid);
 	if (pid != 0){
 		char** args = malloc(sizeof(char*));
 		args[0] = NULL;
 		Exec("mm", args);
 	}
+	int b = Wait(ptr);
+	printf("B: %d\n", b);
+	printf("THIS PID:%d\n",pid);
+	
 	int i = 20;
 	while (i > 0){
 		Pause();

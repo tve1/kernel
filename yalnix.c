@@ -975,17 +975,18 @@ int Fork() {
 }
 
 int Wait(int* status_ptr) {
+
 	while (cur_pcb->child_list != NULL && cur_pcb->exited_children_queue == NULL){
-		printf("switch\n");
+		printf("Process %d is waiting\n", cur_pcb->pid);
 		doAContextSwitch();	
 	}
 
 	if (cur_pcb->child_list == NULL){
-		printf("no children\n");
 		return ERROR;
 	}
+
 	else{
-		printf("exitinggggg\n");
+		cur_pcb->child_list = cur_pcb->child_list->next;  
 		struct exited_node* exited_child = cur_pcb->exited_children_queue;
 		cur_pcb->exited_children_queue = cur_pcb->exited_children_queue->next;
 		status_ptr[0] = exited_child->status;
@@ -1001,18 +1002,7 @@ void Exit(int status) {
 		exited_node->status = status;
 		exited_node->pid = cur_pcb->pid;
 		exited_node->next = NULL;
-		struct child_node* this_node = cur_pcb->parent_pcb->child_list;
-		struct child_node* prev_node = NULL;
-		while (this_node->pid != cur_pcb->pid){
-			prev_node = this_node;
-			this_node = this_node->next;
-		}
-		if (prev_node != NULL){
-			prev_node->next = this_node->next;
-		}
-		else{
-			cur_pcb->parent_pcb->child_list = this_node->next;  
-		}
+		
 		struct exited_node* last_node = cur_pcb->parent_pcb->exited_children_queue;
 		if (last_node == NULL) {
 			cur_pcb->parent_pcb->exited_children_queue = exited_node;
