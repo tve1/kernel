@@ -13,9 +13,12 @@ int main(){
 		args[0] = NULL;
 		Exec("mm", args);
 	}
-	while (1){
+	int i = 20;
+	while (i > 0){
 		Pause();
 		printf("Process ID is: %d \n", GetPid());
+		i--;
 	}
+	printf("idle is OVER\n");
 	return 0;
 }

@@ -969,7 +969,7 @@ int Wait(int* status_ptr) {
 
 void Exit(int status) {
 	TracePrintf(2, "exiting child %d\n", cur_pcb->pid);
-		
+	printf("exiting: %d\n", cur_pcb->pid);	
 	if (cur_pcb->parent_pcb != NULL) {
 		struct exited_node* exited_node= malloc(sizeof(struct exited_node));
 		exited_node->status = status;
@@ -987,18 +987,38 @@ void Exit(int status) {
 		}
 
 	}	
-	struct pcb* p = cur_pcb->prev;
-	struct pcb* n = cur_pcb->next;	
-	p->next = n;
-	n->prev = p;
-
+	struct pcb* p = NULL;
+	struct pcb* n = NULL;
+	if (cur_pcb->prev != NULL){
+		p = cur_pcb->prev;
+	}
+	if (cur_pcb-> next != NULL){
+		n = cur_pcb->next;	
+	}
+	if (p != NULL) {
+		p->next = n;
+	}
+	if (n != NULL){
+		n->prev = p;
+	}
 	free(cur_pcb->ctxp);
 	// free(cur_pcb->region_0) Do optimizaiton stuff here.
 	while (cur_pcb->exited_children_queue != NULL) {
-		struct exited_node* next = cur_pcb->exited_children_queue->next;
-		free(cur_pcb->exited_children_queue);
+		struct exited_node* next = NULL;
+		if (cur_pcb->exited_children_queue->next != NULL){
+			next = cur_pcb->exited_children_queue->next;
+ 		}
+ 		struct exited_node* temporary = cur_pcb->exited_children_queue; 
+		//free(cur_pcb->exited_children_queue);
 		cur_pcb->exited_children_queue = next;
+		//free(temporary); 
+
 	}
+	if (n == NULL && p == NULL){
+		TracePrintf(0, "last process exiting; halt!\n");
+		Halt();
+	}
+
 	free(cur_pcb);
 	doAContextSwitch();	
 
