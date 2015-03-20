@@ -993,8 +993,19 @@ int Wait(int* status_ptr) {
 	}
 
 	else{
-		cur_pcb->child_list = cur_pcb->child_list->next;  
 		struct exited_node* exited_child = cur_pcb->exited_children_queue;
+		struct child_node* cur_child = cur_pcb->child_list;
+		struct child_node* prev_child = NULL;
+		while(cur_child->pid != exited_child->pid) {
+			prev_child = cur_child;
+			cur_child = cur_child->next;
+		}
+		if (prev_child != NULL) {
+			prev_child->next = cur_child->next;
+		}
+		else {
+			cur_pcb->child_list = cur_child->next;
+		}
 		cur_pcb->exited_children_queue = cur_pcb->exited_children_queue->next;
 		status_ptr[0] = exited_child->status;
 		return exited_child->pid; 
@@ -1030,7 +1041,7 @@ void Exit(int status) {
 	if (cur_pcb-> next != NULL){
 		n = cur_pcb->next;	
 	}
-	printf("foo %p %p\n", (void*) p, (void*) n);
+
 	if (p != NULL) {
 		p->next = n;
 	}
@@ -1050,12 +1061,13 @@ void Exit(int status) {
 		//free(temporary); 
 
 	}
-	if (n == NULL && p == NULL){
+
+	free(cur_pcb);
+		if (p == idle_pcb && n == NULL){
 		TracePrintf(0, "last process exiting; halt!\n");
 		Halt();
 	}
 
-	free(cur_pcb);
 	doAContextSwitch();	
 
 }

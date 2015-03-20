@@ -20,11 +20,9 @@ int main(){
 	printf("status: %d\n", ptr[0]);
 	printf("THIS PID:%d\n",pid);
 	
-	int i = 20;
-	while (i > 0){
+	while (1){
 		Pause();
 		printf("Process ID is: %d \n", GetPid());
-		i--;
 	}
 	printf("idle is OVER\n");
 
