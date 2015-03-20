@@ -103,7 +103,7 @@ SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	struct pcb* pcb1 = (struct pcb*) p1;
 	struct pcb* pcb2 = (struct pcb*) p2;
 
-	printf("Perfroming a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
+	TracePrintf(0, "Perfroming a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
 	WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
 	
   	WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
@@ -117,36 +117,24 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	struct pcb* pcb1 = (struct pcb*) p1;
 	struct pcb* pcb2 = (struct pcb*) p2;
 
-	printf("Copying from %d to %d\n", pcb1->pid, pcb2->pid);
+	TracePrintf(0, "Copying from %d to %d\n", pcb1->pid, pcb2->pid);
 	
 	//pcb2->ctxp = ctxp; 
 	int a;
 	for (a = 0; a < KERNEL_STACK_PAGES; a++){
-		// int pfn1 = pcb1->region_0[a].pfn;
-		// int pfn2 = pcb2->region_0[a].pfn;
-		// printf ("1 %d 2 %d\n", pfn1, pfn2);
-		// pcb2->region_0[a] = pcb1->region_0[a];
 		memcpy(temp, (void*) KERNEL_STACK_BASE + a*PAGESIZE, PAGESIZE);
-		printf("copy1\n");
 		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
-		printf("flush1\n");
 		WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
-		printf("write1\n");
-		// printf("%p\n", )
+
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].valid = 1;
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].kprot = (PROT_READ | PROT_WRITE) ;
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].uprot = (PROT_NONE);
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].pfn = allocPhysicalPage();
 		memcpy((void*) KERNEL_STACK_BASE + a*PAGESIZE, temp, PAGESIZE);
-		printf("copy2\n");
 		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
-		printf("flush2\n");
 		WriteRegister(REG_PTR0, (RCS421RegVal) pcb1->region_0_addr);
-		printf("write2\n");
 	}
-	printf("fic %p %p\n", ctxp, pcb2->ctxp);
 	memcpy(pcb2->ctxp, ctxp, sizeof(SavedContext));
-	printf("toria\n");
 
 	return ctxp;
 }
@@ -195,10 +183,9 @@ struct pcb* getNextProcess() {
 void doAContextSwitch() {
 	int ctxtSwitch;
 	struct pcb* nextPcb = getNextProcess(); 
-	printf("A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, nextPcb->pid);
+	TracePrintf(1, "A: cur_pcb %d, ctxp %p, next %d\n", cur_pcb->pid, cur_pcb->ctxp, nextPcb->pid);
 	ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)nextPcb);
 
-	printf("Switch %d\n", ctxtSwitch);
 }
 
 
@@ -206,7 +193,6 @@ void doAContextSwitch() {
 void subtractDelayTicks() {
 	struct pcb* temp_pcb = idle_pcb;
 	while (temp_pcb != NULL) {
-			printf("Delay tics %d\n", temp_pcb->delayTick);
 		if (temp_pcb->delayTick > 0) {
 			temp_pcb->delayTick--;
 		}
@@ -232,18 +218,18 @@ void trapIllegal(ExceptionStackFrame *frame){
 } 
 
 void trapMemory(ExceptionStackFrame *frame){     
-	TracePrintf(0, "trapMemory %p\n", (void*)kernel_frame->addr);
+	TracePrintf(0, 0, "trapMemory %p\n", (void*)kernel_frame->addr);
 	// cur_pcb->region_0[(int)frame->addr/PAGESIZE].pfn = allocPhysicalPage();
 	void* new_addr = (void*)DOWN_TO_PAGE(frame->addr);
 	if ((unsigned long)new_addr < cur_pcb->userStackBottomIndex * PAGESIZE && (unsigned long)new_addr > (cur_pcb->heapTopIndex + 1)* PAGESIZE) {
-		printf("Extending user heap to %p\n", new_addr);
+		TracePrintf(0, "Extending user heap to %p\n", new_addr);
 		int num_to_alloc = (cur_pcb->userStackBottomIndex * PAGESIZE - (unsigned long)new_addr) / PAGESIZE; 
-		printf("Allocating %d pages\n", num_to_alloc);
+		TracePrintf(0, "Allocating %d pages\n", num_to_alloc);
 		int i;
 		for (i = 0; i < num_to_alloc; i++) {
 			cur_pcb->userStackBottomIndex--;
 			int new_pfn = allocPhysicalPage();
-			printf("Allocating page %d\n", new_pfn);
+			TracePrintf(0, "Allocating page %d\n", new_pfn);
 			cur_pcb->region_0[cur_pcb->userStackBottomIndex].pfn = new_pfn;
 			cur_pcb->region_0[cur_pcb->userStackBottomIndex].valid = 1;
 	        cur_pcb->region_0[cur_pcb->userStackBottomIndex].kprot = PROT_READ | PROT_WRITE;
@@ -818,14 +804,12 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry.valid = 1;
 		entry.kprot = (PROT_READ | PROT_EXEC);
 		region_1[j - kernel_page_base] = entry;
-		printf("index: %d, pfn: %d\n", j-kernel_page_base, entry.pfn);
 	}
 
 	
 	int num_dbh_pages = ((unsigned long)(actual_brk - (void*) &_etext) / PAGESIZE);
 
 	int n;
-	printf("dbh: %d\n", num_dbh_pages);
 	
 	for (n = kernel_page_base + num_text_pages; n < kernel_page_base + num_text_pages + num_dbh_pages; n++){
 		page_table[n]->valid = 1;
@@ -834,7 +818,6 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		entry.valid = 1;
 		entry.kprot = (PROT_READ | PROT_WRITE);
 		region_1[n - kernel_page_base] = entry;
-		printf("index: %d, pfn: %d\n", n-kernel_page_base, entry.pfn);
 	}
 
 	current_spot = (unsigned long) 0;
@@ -848,7 +831,6 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		pfn++;
 	}
 	physical_pages_length = pfn;
-	printf("physical pages: %d\n", physical_pages_length);
 	num_free_pages = physical_pages_length;
 	
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
@@ -860,11 +842,9 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 
 TracePrintf(0,
 	    "Virtual memory enabled\n");
-	printf("WE STARTED!!!\n");
 	
 	idleArgs[0] = NULL; 
 	initArgs[0] = NULL; 
-	printf("Loading init...\n");
 
 	LoadProgram("init", initArgs, init_pcb);
 	
@@ -874,7 +854,7 @@ TracePrintf(0,
 	init_pcb->next = NULL;
 
 
-	printf("Loading idle...\n");
+	TracePrintf(0, "Loading idle...\n");
 
 	region_0 = region_0_idle;
 
@@ -897,7 +877,7 @@ TracePrintf(0,
 	// idle_pcb->next = init_pcb;
 	
 	
-	printf("Finished loading!!!!\n");
+	TracePrintf(0, "Finished loading!!!!\n");
 }
 
 struct pte_wrapper  allocNewRegion0() {
