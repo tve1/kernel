@@ -1,12 +1,17 @@
 #include "stdio.h"
-
+#include "stdlib.h"
 #include <comp421/yalnix.h>
 #include <comp421/hardware.h>
 
 int main(){
+	int* ptr = malloc(sizeof(int));
+	int a = Wait(ptr);
+	printf("A: %d\n", a);
 	printf("Starting idle\n");
 	Pause();
 	int pid = Fork();
+	int b = Wait(ptr);
+	printf("B: %d\n", b);
 	printf("THIS PID:%d\n",pid);
 	if (pid != 0){
 		char** args = malloc(sizeof(char*));
@@ -20,5 +25,6 @@ int main(){
 		i--;
 	}
 	printf("idle is OVER\n");
+
 	return 0;
 }

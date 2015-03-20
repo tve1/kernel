@@ -32,6 +32,7 @@ struct pcb {
  	int userStackTopIndex;
  	int userStackBottomIndex;
  	struct exited_node* exited_children_queue;
+ 	struct child_node* child_list;
  	struct pcb* parent_pcb;
 };
 
@@ -45,6 +46,11 @@ struct exited_node {
 	struct exited_node* next;
 	int pid; 
 	int status; 
+};
+
+struct child_node {
+	int pid;
+	struct child_node* next;
 };
 
 
@@ -163,6 +169,9 @@ void trapKernel(ExceptionStackFrame *frame){
 	}
 	else if(frame->code == YALNIX_EXIT) {
 		Exit((int) frame->regs[1]);
+	}
+	else if(frame->code == YALNIX_WAIT) {
+		frame->regs[0] = Wait((void*) frame->regs[1]);
 	}
 } 
 
@@ -926,8 +935,11 @@ int Fork() {
 	child_pcb->exited_children_queue = NULL;
 	child_pcb->parent_pcb = cur_pcb;
 
-
-
+	struct child_node* child = malloc(sizeof(struct child_node));
+	child->pid = child_pcb->pid;
+	child->next = cur_pcb->child_list;
+	cur_pcb->child_list = child; 
+	child_pcb->child_list = NULL;
 
 	int i;
 	for (i = 0; i < num_pages_region_0 - KERNEL_STACK_PAGES; i++){
@@ -963,8 +975,22 @@ int Fork() {
 }
 
 int Wait(int* status_ptr) {
-	// TODO after ball pit
-	return -1;
+	while (cur_pcb->child_list != NULL && cur_pcb->exited_children_queue == NULL){
+		printf("switch\n");
+		doAContextSwitch();	
+	}
+
+	if (cur_pcb->child_list == NULL){
+		printf("no children\n");
+		return ERROR;
+	}
+	else{
+		printf("exitinggggg\n");
+		struct exited_node* exited_child = cur_pcb->exited_children_queue;
+		cur_pcb->exited_children_queue = cur_pcb->exited_children_queue->next;
+		status_ptr[0] = exited_child->status;
+		return exited_child->pid; 
+	}
 }
 
 void Exit(int status) {
@@ -975,6 +1001,18 @@ void Exit(int status) {
 		exited_node->status = status;
 		exited_node->pid = cur_pcb->pid;
 		exited_node->next = NULL;
+		struct child_node* this_node = cur_pcb->parent_pcb->child_list;
+		struct child_node* prev_node = NULL;
+		while (this_node->pid != cur_pcb->pid){
+			prev_node = this_node;
+			this_node = this_node->next;
+		}
+		if (prev_node != NULL){
+			prev_node->next = this_node->next;
+		}
+		else{
+			cur_pcb->parent_pcb->child_list = this_node->next;  
+		}
 		struct exited_node* last_node = cur_pcb->parent_pcb->exited_children_queue;
 		if (last_node == NULL) {
 			cur_pcb->parent_pcb->exited_children_queue = exited_node;
@@ -1008,7 +1046,7 @@ void Exit(int status) {
 		if (cur_pcb->exited_children_queue->next != NULL){
 			next = cur_pcb->exited_children_queue->next;
  		}
- 		struct exited_node* temporary = cur_pcb->exited_children_queue; 
+ 		//struct exited_node* temporary = cur_pcb->exited_children_queue; 
 		//free(cur_pcb->exited_children_queue);
 		cur_pcb->exited_children_queue = next;
 		//free(temporary); 
@@ -1023,6 +1061,7 @@ void Exit(int status) {
 	doAContextSwitch();	
 
 }
+
 
 int Exec(char* filename, char **argvec){
 	TracePrintf(0, "executing %s\n", filename);
