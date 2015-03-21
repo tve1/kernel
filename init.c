@@ -9,15 +9,15 @@
 
 int main(){	
 	printf("Starting init\n");
-	char* str = malloc(10000);
-	char* str2 = "the quick bronw fox jusmped over the lzy dog";
-	strcpy(str, str2);
-	printf("Sucessfully got %s\n", str);
-	free(str);
+	char* str = malloc(TERMINAL_MAX_LINE);
+	// char* str2 = "the quick bronw fox jusmped over the lzy dog";
+	// strcpy(str, str2);
+	// free(str);
 
 	 while (1){
 		printf("Or here\n");
-		TtyWrite(0, "abcdefghijlkmnopqrstuvwxyz\n", 27);
+		TtyRead(0, str, TERMINAL_MAX_LINE);
+		printf("Sucessfully got %s\n", str);
 		printf("Process ID is: %d\n", GetPid());
 		Pause();
 		printf("Get here before breaking\n");

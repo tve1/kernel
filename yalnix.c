@@ -80,7 +80,10 @@ int topIndex;
 int lastPid;
 
 void* terminal_write_buffers[NUM_TERMINALS];
+void* terminal_read_buffers[NUM_TERMINALS];
 int isWriting[NUM_TERMINALS];
+int isReadable[NUM_TERMINALS];
+
 ExceptionStackFrame *kernel_frame;
 unsigned int allocPhysicalPage(){
 	if (physical_pages == NULL){
@@ -178,6 +181,10 @@ void trapKernel(ExceptionStackFrame *frame){
 	else if(frame->code == YALNIX_TTY_WRITE) {
 		frame->regs[0] = TtyWrite((int) frame->regs[1], (void*) frame->regs[2], (int)frame->regs[3]);
 	}
+	else if(frame->code == YALNIX_TTY_READ) {
+		frame->regs[0] = TtyRead((int) frame->regs[1], (void*) frame->regs[2], (int)frame->regs[3]);
+	}
+
 } 
 
 struct pcb* getNextProcess() {
@@ -269,8 +276,9 @@ void trapMath(ExceptionStackFrame *frame){
 } 
 
 void trapTtyReceive(ExceptionStackFrame *frame) {     
-	TracePrintf(0, "trapTtyReceive");     
-	Halt(); 
+	int id = (int)frame->code;
+	isReadable[id] = 1;
+	TtyReceive(id, terminal_read_buffers[id], TERMINAL_MAX_LINE);
 } 
 
 void trapTtyTransmit(ExceptionStackFrame *frame) {     
@@ -721,6 +729,8 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	for (asdf = 0; asdf < NUM_TERMINALS; asdf++) {
 		terminal_write_buffers[asdf] = malloc(sizeof(TERMINAL_MAX_LINE));
 		isWriting[asdf] = 0;
+		terminal_read_buffers[asdf] = malloc(sizeof(TERMINAL_MAX_LINE));
+		isReadable[asdf] = 0;
 	}
 
 	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
@@ -991,6 +1001,25 @@ int Fork() {
 
 	return 0;
 }
+
+int TtyRead(int tty_id, void *buf, int len) {
+	while(!isReadable[tty_id]) {
+		doAContextSwitch();
+	}
+	printf("a\n");
+	isReadable[tty_id] = 0;
+	printf("b\n");
+	int returnLength = strlen(terminal_read_buffers[tty_id]);
+	printf("c\n");
+	memset(buf, 0, TERMINAL_MAX_LINE);
+	printf("d\n");
+	memcpy(buf, terminal_read_buffers[tty_id], len);
+	printf("e\n");
+	memset(terminal_read_buffers[tty_id], 0, returnLength);
+	printf("f\n");
+	return returnLength;
+}
+
 int TtyWrite(int tty_id, void *buf, int len) {
 	while(isWriting[tty_id]) {
 		doAContextSwitch();
@@ -1004,7 +1033,7 @@ int TtyWrite(int tty_id, void *buf, int len) {
 
 int Wait(int* status_ptr) {
 
-	while (cur_pcb->child_list != NULL && cur_pcb->exited_children_queue == NULL){
+	while (cur_pcb->child_list != NULL && cur_pcb->exited_children_queue == NULL) {
 		printf("Process %d is waiting\n", cur_pcb->pid);
 		doAContextSwitch();	
 	}
