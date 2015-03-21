@@ -141,7 +141,7 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 		TracePrintf(0, "myfirstswitchfunc\n");
 		int pfn = allocPhysicalPage();
 		if (pfn == -1){
-			TracePrintf("out of mem\n");
+			TracePrintf(0, "out of mem\n");
 			pcb2->pid = -1;
 			return ctxp;
 		}
@@ -806,9 +806,20 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	int i;
 
 	for (i = 0; i < num_nodes; i++) {
-		struct node* new_page = malloc(sizeof(struct node*));
+		struct node* new_page = malloc(sizeof(struct node));
 		physical_pages[i] = new_page;
 		new_page->pfn = i;
+	}
+
+	int num_nodes_2 = pmem_size / PAGESIZE;
+	int top_page_cur = DOWN_TO_PAGE(actual_brk) / PAGESIZE + 1;
+	top_page_cur += (num_nodes_2 - top_page_cur) * sizeof(struct node) / PAGESIZE + 1;
+	printf("SUPERPOOP %d\n", top_page_cur);
+	int qqq;
+	for (qqq = top_page_cur; qqq < num_nodes_2; qqq++) {
+		struct node* new_page = malloc(sizeof(struct node));
+		physical_pages[qqq] = new_page;
+		new_page->pfn = qqq;	
 	}
 
 	int k;
@@ -888,9 +899,11 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		current_spot += PAGESIZE;
 		pfn++;
 	}
+
 	physical_pages_length = pfn;
 	num_free_pages = physical_pages_length;
-	
+	num_free_pages += num_nodes_2 - top_page_cur;
+	printf("free pages %d\n", num_free_pages);
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
 	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
 
@@ -1260,6 +1273,12 @@ int SetKernelBrk(void *addr){
 				struct pte entry = region_1[index];
 				entry.valid = 1;
 				entry.kprot = (PROT_READ | PROT_WRITE);
+				int pfn = allocPhysicalPage();
+				if (pfn == -1) {
+					TracePrintf(-1, "SetKernelBrk: out of memory\n");
+					return ERROR;
+				}
+				entry.pfn = pfn;
 				region_1[index] = entry;
 				//printf("PFN %d\n", entry.pfn);
 			}
