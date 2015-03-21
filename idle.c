@@ -20,7 +20,7 @@ int main(){
 	printf("status: %d\n", ptr[0]);
 	printf("THIS PID:%d\n",pid);
 	
-	while (1){
+	while (1) {
 		Pause();
 		printf("Process ID is: %d \n", GetPid());
 	}

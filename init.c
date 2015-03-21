@@ -14,13 +14,14 @@ int main(){
 	strcpy(str, str2);
 	printf("Sucessfully got %s\n", str);
 	free(str);
-	// while (1){
+
+	 while (1){
+		printf("Or here\n");
+		TtyWrite(0, "abcdefghijlkmnopqrstuvwxyz\n", 27);
 		printf("Process ID is: %d\n", GetPid());
 		Pause();
-	  // }
-		Pause();
-		Pause();
-		Pause();
+		printf("Get here before breaking\n");
+	 }
 	printf("init is done\n");	
 	return 0;
 }

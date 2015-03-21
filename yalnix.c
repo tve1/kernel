@@ -79,6 +79,8 @@ int is_vmem = 0;
 int topIndex;
 int lastPid;
 
+void* terminal_write_buffers[NUM_TERMINALS];
+int isWriting[NUM_TERMINALS];
 ExceptionStackFrame *kernel_frame;
 unsigned int allocPhysicalPage(){
 	if (physical_pages == NULL){
@@ -172,6 +174,9 @@ void trapKernel(ExceptionStackFrame *frame){
 	}
 	else if(frame->code == YALNIX_WAIT) {
 		frame->regs[0] = Wait((void*) frame->regs[1]);
+	}
+	else if(frame->code == YALNIX_TTY_WRITE) {
+		frame->regs[0] = TtyWrite((int) frame->regs[1], (void*) frame->regs[2], (int)frame->regs[3]);
 	}
 } 
 
@@ -269,8 +274,8 @@ void trapTtyReceive(ExceptionStackFrame *frame) {
 } 
 
 void trapTtyTransmit(ExceptionStackFrame *frame) {     
-	TracePrintf(0, "trapTtyTransmit");     
-	Halt(); 
+	int id = (int)frame->code;
+	isWriting[id] = 0;
 }
 
 int Delay(int clock_ticks){
@@ -712,6 +717,12 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	
 	WriteRegister(REG_VECTOR_BASE, (RCS421RegVal) ivt);
 
+	int asdf = 0; 
+	for (asdf = 0; asdf < NUM_TERMINALS; asdf++) {
+		terminal_write_buffers[asdf] = malloc(sizeof(TERMINAL_MAX_LINE));
+		isWriting[asdf] = 0;
+	}
+
 	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
 	int num_nodes = (current_spot) / PAGESIZE;
 	//int num_nodes = 1023;
@@ -980,6 +991,16 @@ int Fork() {
 
 	return 0;
 }
+int TtyWrite(int tty_id, void *buf, int len) {
+	while(isWriting[tty_id]) {
+		doAContextSwitch();
+	}
+	isWriting[tty_id] = 1;
+	memcpy(terminal_write_buffers[tty_id], buf, len);
+	// terminal_write_buffers[tty_id][len+1] = 0;
+	TtyTransmit(tty_id, terminal_write_buffers[tty_id], len);
+	return len;
+}
 
 int Wait(int* status_ptr) {
 
@@ -1063,7 +1084,7 @@ void Exit(int status) {
 	}
 
 	free(cur_pcb);
-		if (p == idle_pcb && n == NULL){
+	if (p == idle_pcb && n == NULL){
 		TracePrintf(0, "last process exiting; halt!\n");
 		Halt();
 	}
