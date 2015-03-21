@@ -51,6 +51,7 @@ struct exited_node {
 struct child_node {
 	int pid;
 	struct child_node* next;
+	struct pcb* pcb;
 };
 
 
@@ -87,6 +88,7 @@ int isReadable[NUM_TERMINALS];
 ExceptionStackFrame *kernel_frame;
 unsigned int allocPhysicalPage(){
 	if (physical_pages == NULL){
+		TracePrintf(0, "no physical_pages\n");
 		return -1;
 	}
 	int i;
@@ -99,13 +101,16 @@ unsigned int allocPhysicalPage(){
 			return physical_pages[i]->pfn;
 		}
 	}
+	TracePrintf(0, "what about here\n");
 	return -1;
 }
 
 int freePhysicalPage(unsigned int pfn) {
 	TracePrintf(1, "Free page %p\n", pfn);
-	physical_pages[pfn]->isRemoved = 0;
-	num_free_pages++;
+	if (physical_pages[pfn]->isRemoved) {
+		physical_pages[pfn]->isRemoved = 0;
+		num_free_pages++;
+	}
 	return 1;
 }
 
@@ -114,13 +119,13 @@ SavedContext *MySwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	struct pcb* pcb1 = (struct pcb*) p1;
 	struct pcb* pcb2 = (struct pcb*) p2;
 
-	TracePrintf(0, "Perfroming a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
+	TracePrintf(0, "Performing a context switch from %d to %d\n", pcb1->pid, pcb2->pid);
 	WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
-	
+	TracePrintf(0, "a\n");
   	WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_0);
-	
+	TracePrintf(0, "b\n");
 	cur_pcb = pcb2;
-
+	TracePrintf(0, "c\n");
 	return cur_pcb->ctxp;
 }
 
@@ -133,6 +138,14 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 	//pcb2->ctxp = ctxp; 
 	int a;
 	for (a = 0; a < KERNEL_STACK_PAGES; a++){
+		TracePrintf(0, "myfirstswitchfunc\n");
+		int pfn = allocPhysicalPage();
+		if (pfn == -1){
+			TracePrintf("out of mem\n");
+			pcb2->pid = -1;
+			return ctxp;
+		}
+
 		memcpy(temp, (void*) KERNEL_STACK_BASE + a*PAGESIZE, PAGESIZE);
 		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
 		WriteRegister(REG_PTR0, (RCS421RegVal) pcb2->region_0_addr);
@@ -140,7 +153,8 @@ SavedContext *MyFirstSwitchFunc(SavedContext *ctxp, void *p1, void *p2) {
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].valid = 1;
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].kprot = (PROT_READ | PROT_WRITE) ;
 		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].uprot = (PROT_NONE);
-		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].pfn = allocPhysicalPage();
+		
+		pcb2->region_0[KERNEL_STACK_BASE/PAGESIZE + a].pfn = pfn;
 		memcpy((void*) KERNEL_STACK_BASE + a*PAGESIZE, temp, PAGESIZE);
 		WriteRegister(REG_TLB_FLUSH, KERNEL_STACK_BASE + a*PAGESIZE);
 		WriteRegister(REG_PTR0, (RCS421RegVal) pcb1->region_0_addr);
@@ -189,18 +203,18 @@ void trapKernel(ExceptionStackFrame *frame){
 
 struct pcb* getNextProcess() {
 	struct pcb* nextProcess = cur_pcb->next;
-	printf("next %p\n", nextProcess);
+	TracePrintf(0, "next %p\n", nextProcess);
 	if (nextProcess == NULL) {
 		nextProcess = idle_pcb;
 	}
-		printf("anext %d\n", nextProcess->pid);
+	TracePrintf(0, "anext %d\n", nextProcess->pid);
 	while (nextProcess->delayTick > 0) {	
-		printf("next %p\n", nextProcess);
+		TracePrintf(0, "next %p\n", nextProcess);
 		nextProcess = nextProcess->next;
 		if (nextProcess == NULL) {
 			nextProcess = idle_pcb;
 		}
-		printf("wnext %d\n", nextProcess->pid);
+		TracePrintf(0, "wnext %d\n", nextProcess->pid);
 
 	}
 	return nextProcess;
@@ -210,7 +224,7 @@ void doAContextSwitch() {
 	int ctxtSwitch;
 	struct pcb* nextPcb = getNextProcess(); 
 	printf("next pcb %p %d\n", nextPcb, nextPcb->pid);
-	TracePrintf(1, "A: cur_pcb %d,next %d\n", cur_pcb->pid, nextPcb->pid);
+	printf("A: cur_pcb %d,next %d\n", cur_pcb->pid, nextPcb->pid);
 	ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)nextPcb);
 
 }
@@ -219,7 +233,9 @@ void doAContextSwitch() {
 
 void subtractDelayTicks() {
 	struct pcb* temp_pcb = idle_pcb;
+
 	while (temp_pcb != NULL) {
+		// printf("temp %d\n", temp_pcb->pid);
 		if (temp_pcb->delayTick > 0) {
 			temp_pcb->delayTick--;
 		}
@@ -255,7 +271,12 @@ void trapMemory(ExceptionStackFrame *frame){
 		int i;
 		for (i = 0; i < num_to_alloc; i++) {
 			cur_pcb->userStackBottomIndex--;
+			TracePrintf(0, "trapMem\n");
 			int new_pfn = allocPhysicalPage();
+			if (new_pfn == -1){
+				printf("3ran out of memory\n");
+				return;
+			}
 			TracePrintf(0, "Allocating page %d\n", new_pfn);
 			cur_pcb->region_0[cur_pcb->userStackBottomIndex].pfn = new_pfn;
 			cur_pcb->region_0[cur_pcb->userStackBottomIndex].valid = 1;
@@ -734,7 +755,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	}
 
 	unsigned long current_spot = (unsigned long) VMEM_0_LIMIT;
-	int num_nodes = (current_spot) / PAGESIZE;
+	int num_nodes = (current_spot) / PAGESIZE - KERNEL_STACK_PAGES;
 	//int num_nodes = 1023;
 	int num_ptes = (pmem_size - PMEM_BASE) / PAGESIZE;
 	physical_pages = malloc(sizeof(struct node*) * num_nodes);
@@ -769,6 +790,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	idle_pcb->parent_pcb = NULL;
 	init_pcb->exited_children_queue = NULL;
 	idle_pcb->exited_children_queue = NULL;
+	init_pcb->region_0_addr = region_0;
 
 	int h;
 	
@@ -884,7 +906,6 @@ TracePrintf(0,
 
 	LoadProgram("init", initArgs, init_pcb);
 	
-	init_pcb->region_0_addr = region_0;
 	init_pcb->pid = 1;
 	lastPid = 1;
 	init_pcb->next = NULL;
@@ -919,12 +940,17 @@ TracePrintf(0,
 struct pte_wrapper  allocNewRegion0() {
 	//use second half 
 	//else
-	if ((void*) ( (unsigned long) topIndex*PAGESIZE+VMEM_1_BASE) < actual_brk){
-		struct pte_wrapper err_wrapper;
-		err_wrapper.pfn = -1;
+	struct pte_wrapper err_wrapper;
+	err_wrapper.pfn = -1;
+	if ((void*) ( (unsigned long) topIndex*PAGESIZE+VMEM_1_BASE) < actual_brk){	
 		return err_wrapper;
 	}
+	TracePrintf(0, "allocNewRegion0\n");
 	int pfn = allocPhysicalPage();
+	if (pfn == -1){
+		TracePrintf(0, "out of physical memory\n");
+		return err_wrapper;
+	}
 
 	region_1[topIndex].valid = 1;
 	region_1[topIndex].pfn = pfn;
@@ -945,6 +971,7 @@ int Fork() {
 	TracePrintf(0, "Fork\n");
 	struct pte_wrapper wrapper = allocNewRegion0();
 	if (wrapper.pfn == -1){
+		TracePrintf(0, "1ran out of memory\n");
 		return ERROR;
 	}
 	struct pte* child_region0 = wrapper.pte; 
@@ -965,7 +992,7 @@ int Fork() {
 	struct child_node* child = malloc(sizeof(struct child_node));
 	child->pid = child_pcb->pid;
 	child->next = cur_pcb->child_list;
-	cur_pcb->child_list = child; 
+	child->pcb = child_pcb;
 	child_pcb->child_list = NULL;
 
 	int i;
@@ -975,7 +1002,17 @@ int Fork() {
 		child_region0[i].uprot = cur_pcb->region_0[i].uprot;
 
 		if (cur_pcb->region_0[i].valid) {  
-			child_pcb->region_0[i].pfn = allocPhysicalPage();
+			TracePrintf(0, "fork\n");
+			int pfn = allocPhysicalPage();
+			if (child_pcb->pid == 25) {
+				printf("pfn: %d\n", pfn);			
+			}
+			if (pfn == -1){
+				TracePrintf(0, "2ran out of memory\n");
+				
+				return ERROR;
+			}
+			child_pcb->region_0[i].pfn = pfn;
 			child_region0[i].kprot = (PROT_WRITE | PROT_READ);
 
 			memcpy(temp, (void*) VMEM_0_BASE + i*PAGESIZE, PAGESIZE);
@@ -985,16 +1022,31 @@ int Fork() {
 			memcpy((void*) VMEM_0_BASE + i*PAGESIZE, temp, PAGESIZE);
 			WriteRegister(REG_TLB_FLUSH, VMEM_0_BASE + i*PAGESIZE);
 			WriteRegister(REG_PTR0, (RCS421RegVal) cur_pcb->region_0_addr);
-		}		
+		}
+
 
 	}
-	struct pcb* temp = cur_pcb->next;
-	cur_pcb->next = child_pcb;
-	child_pcb->prev = cur_pcb;
-	child_pcb->next = temp;
-	temp->prev = child_pcb;
-	ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
-		
+	if (child_pcb->pid == 25) {
+				printf("num free: %d\n", num_free_pages);			
+			}
+	if (num_free_pages > KERNEL_STACK_PAGES) {
+	
+		TracePrintf(0, "starting switch\n");
+		cur_pcb->child_list = child; 
+		TracePrintf(0, "do we get here?\n");
+		struct pcb* temp = cur_pcb->next;
+		cur_pcb->next = child_pcb;
+		child_pcb->prev = cur_pcb;
+		child_pcb->next = temp;
+		if (temp != NULL){
+			temp->prev = child_pcb;
+		}
+		ContextSwitch(MyFirstSwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)child_pcb);
+	}
+	else {
+		return ERROR;
+	}
+	TracePrintf(0, "did the thing\n");	
 	if (cur_pcb->pid == child_pcb->pid){
 		return child_pcb->pid;
 	}
@@ -1006,17 +1058,15 @@ int TtyRead(int tty_id, void *buf, int len) {
 	while(!isReadable[tty_id]) {
 		doAContextSwitch();
 	}
-	printf("a\n");
+
 	isReadable[tty_id] = 0;
-	printf("b\n");
+
 	int returnLength = strlen(terminal_read_buffers[tty_id]);
-	printf("c\n");
+
 	memset(buf, 0, TERMINAL_MAX_LINE);
-	printf("d\n");
 	memcpy(buf, terminal_read_buffers[tty_id], len);
-	printf("e\n");
 	memset(terminal_read_buffers[tty_id], 0, returnLength);
-	printf("f\n");
+
 	return returnLength;
 }
 
@@ -1034,7 +1084,7 @@ int TtyWrite(int tty_id, void *buf, int len) {
 int Wait(int* status_ptr) {
 
 	while (cur_pcb->child_list != NULL && cur_pcb->exited_children_queue == NULL) {
-		printf("Process %d is waiting\n", cur_pcb->pid);
+		TracePrintf(0, "Process %d is waiting\n", cur_pcb->pid);
 		doAContextSwitch();	
 	}
 
@@ -1066,6 +1116,7 @@ void Exit(int status) {
 	TracePrintf(2, "exiting child %d\n", cur_pcb->pid);
 	printf("exiting: %d\n", cur_pcb->pid);	
 	if (cur_pcb->parent_pcb != NULL) {
+		TracePrintf(0, "don't come in here\n");
 		struct exited_node* exited_node= malloc(sizeof(struct exited_node));
 		exited_node->status = status;
 		exited_node->pid = cur_pcb->pid;
@@ -1083,6 +1134,7 @@ void Exit(int status) {
 		}
 
 	}	
+	TracePrintf(0, "are we there yet\n");
 	struct pcb* p = NULL;
 	struct pcb* n = NULL;
 	if (cur_pcb->prev != NULL){
@@ -1093,6 +1145,7 @@ void Exit(int status) {
 	}
 
 	if (p != NULL) {
+		printf("Tis %d %d\n", p->pid, cur_pcb->pid);
 		p->next = n;
 	}
 	if (n != NULL){
@@ -1111,6 +1164,12 @@ void Exit(int status) {
 		//free(temporary); 
 
 	}
+	struct child_node* this_child = cur_pcb->child_list;
+	while (this_child != NULL){
+		this_child->pcb->parent_pcb = NULL;
+		this_child = this_child->next;
+	}
+
 
 	free(cur_pcb);
 	if (p == idle_pcb && n == NULL){
@@ -1138,13 +1197,16 @@ int Brk(void *addr) {
 		return ERROR;
 	}
 	else if ((unsigned long)new_addr > (cur_pcb->userStackBottomIndex - 1) * PAGESIZE) {
+		printf("another error\n");
 		return ERROR;
 	}
 	else if (new_addr == cur_top_addr) {
+		printf("we good\n");
 		return 0;
 	}
 	else {
 		if (new_addr < cur_top_addr) {
+			printf("new_addr < cur_top_addr\n");
 			int num_to_free = (cur_top_addr - new_addr) / PAGESIZE;
 			int j;
 			for (j = 0; j < num_to_free; j++) {
@@ -1155,10 +1217,12 @@ int Brk(void *addr) {
 			}
 		}
 		else {
+			printf("new_addr > cur_top_addr\n");
 			int num_to_alloc = (new_addr - cur_top_addr) / PAGESIZE;
 			int i;
 			for (i = 0; i < num_to_alloc; i++) {
 				cur_pcb->heapTopIndex++;
+				TracePrintf(0, "brk\n");
 				int newPage = allocPhysicalPage();
 				if (newPage == -1) {
 					return ERROR;
@@ -1167,7 +1231,7 @@ int Brk(void *addr) {
 				cur_pcb->region_0[cur_pcb->heapTopIndex].valid = 1;
 		        cur_pcb->region_0[cur_pcb->heapTopIndex].kprot = PROT_READ | PROT_WRITE;
     			cur_pcb->region_0[cur_pcb->heapTopIndex].uprot = PROT_READ | PROT_WRITE;
-
+				printf("pfn is %d\n", newPage);
 			}
 		}
 	}		
@@ -1176,12 +1240,12 @@ int Brk(void *addr) {
 
 
 int SetKernelBrk(void *addr){
-	printf("Brk\n");
+	printf("kernel break\n");
 	TracePrintf(0,"kernel break\n");
 
 	if (addr > (void*) VMEM_1_LIMIT || addr < (void*) VMEM_1_BASE){
-		TracePrintf(0, "addr > VMEM_1_LIMIT\n");
-		return -1;
+		//TracePrintf(0, "addr > VMEM_1_LIMIT\n");
+		return ERROR;
 	}
 	if (is_vmem) {
 		void* new_brk =	new_brk = (void*) UP_TO_PAGE(addr);
@@ -1189,7 +1253,6 @@ int SetKernelBrk(void *addr){
 			return ERROR;
 		}
 		else if (new_brk > actual_brk){
-			
 			int num_to_alloc = (new_brk - actual_brk) / PAGESIZE;
 			int j;
 			for (j=0; j < num_to_alloc; j++) {
@@ -1198,6 +1261,7 @@ int SetKernelBrk(void *addr){
 				entry.valid = 1;
 				entry.kprot = (PROT_READ | PROT_WRITE);
 				region_1[index] = entry;
+				//printf("PFN %d\n", entry.pfn);
 			}
 			actual_brk = new_brk;
 		}
