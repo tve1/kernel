@@ -223,8 +223,8 @@ struct pcb* getNextProcess() {
 void doAContextSwitch() {
 	int ctxtSwitch;
 	struct pcb* nextPcb = getNextProcess(); 
-	printf("next pcb %p %d\n", nextPcb, nextPcb->pid);
-	printf("A: cur_pcb %d,next %d\n", cur_pcb->pid, nextPcb->pid);
+	TracePrintf(0, "next pcb %p %d\n", nextPcb, nextPcb->pid);
+	TracePrintf(0, "A: cur_pcb %d,next %d\n", cur_pcb->pid, nextPcb->pid);
 	ctxtSwitch = ContextSwitch(MySwitchFunc, cur_pcb->ctxp, (void *)cur_pcb, (void *)nextPcb);
 
 }
@@ -274,7 +274,7 @@ void trapMemory(ExceptionStackFrame *frame){
 			TracePrintf(0, "trapMem\n");
 			int new_pfn = allocPhysicalPage();
 			if (new_pfn == -1){
-				printf("3ran out of memory\n");
+				TracePrintf(0, "3ran out of memory\n");
 				return;
 			}
 			TracePrintf(0, "Allocating page %d\n", new_pfn);
@@ -814,7 +814,6 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	int num_nodes_2 = pmem_size / PAGESIZE - 1;
 	int top_page_cur = DOWN_TO_PAGE(actual_brk) / PAGESIZE + 1;
 	top_page_cur += (num_nodes_2 - top_page_cur) * sizeof(struct node) / PAGESIZE + 1;
-	printf("SUPERPOOP %d\n", top_page_cur);
 	int qqq;
 	for (qqq = top_page_cur; qqq < num_nodes_2; qqq++) {
 		struct node* new_page = malloc(sizeof(struct node));
@@ -1016,9 +1015,7 @@ int Fork() {
 		if (cur_pcb->region_0[i].valid) {  
 			TracePrintf(0, "fork\n");
 			int pfn = allocPhysicalPage();
-			if (child_pcb->pid == 25) {
-				printf("pfn: %d\n", pfn);			
-			}
+			
 			if (pfn == -1){
 				TracePrintf(0, "2ran out of memory\n");
 				
@@ -1038,9 +1035,7 @@ int Fork() {
 
 
 	}
-	if (child_pcb->pid == 25) {
-				printf("num free: %d\n", num_free_pages);			
-			}
+
 	if (num_free_pages > KERNEL_STACK_PAGES) {
 	
 		TracePrintf(0, "starting switch\n");
@@ -1126,7 +1121,7 @@ int Wait(int* status_ptr) {
 
 void Exit(int status) {
 	TracePrintf(2, "exiting child %d\n", cur_pcb->pid);
-	printf("exiting: %d\n", cur_pcb->pid);	
+
 	if (cur_pcb->parent_pcb != NULL) {
 		TracePrintf(0, "don't come in here\n");
 		struct exited_node* exited_node= malloc(sizeof(struct exited_node));
@@ -1157,7 +1152,6 @@ void Exit(int status) {
 	}
 
 	if (p != NULL) {
-		printf("Tis %d %d\n", p->pid, cur_pcb->pid);
 		p->next = n;
 	}
 	if (n != NULL){
@@ -1205,15 +1199,15 @@ int Brk(void *addr) {
 	void* new_addr = (void*) UP_TO_PAGE(addr);
 	void* cur_top_addr = (void*)(((unsigned long)cur_pcb->heapTopIndex + 1)* PAGESIZE);
 	if ((unsigned long)new_addr < cur_pcb->bottomOfHeapIndex * PAGESIZE) {
-		printf("error\n");
+		TracePrintf(-1, "another error\n");
 		return ERROR;
 	}
 	else if ((unsigned long)new_addr > (cur_pcb->userStackBottomIndex - 1) * PAGESIZE) {
-		printf("another error\n");
+		TracePrintf(-1, "another error\n");
 		return ERROR;
 	}
 	else if (new_addr == cur_top_addr) {
-		printf("we good\n");
+		TracePrintf(0, "we good\n");
 		return 0;
 	}
 	else {
@@ -1229,7 +1223,6 @@ int Brk(void *addr) {
 			}
 		}
 		else {
-			printf("new_addr > cur_top_addr\n");
 			int num_to_alloc = (new_addr - cur_top_addr) / PAGESIZE;
 			int i;
 			for (i = 0; i < num_to_alloc; i++) {
@@ -1243,7 +1236,6 @@ int Brk(void *addr) {
 				cur_pcb->region_0[cur_pcb->heapTopIndex].valid = 1;
 		        cur_pcb->region_0[cur_pcb->heapTopIndex].kprot = PROT_READ | PROT_WRITE;
     			cur_pcb->region_0[cur_pcb->heapTopIndex].uprot = PROT_READ | PROT_WRITE;
-				printf("pfn is %d\n", newPage);
 			}
 		}
 	}		
@@ -1252,7 +1244,6 @@ int Brk(void *addr) {
 
 
 int SetKernelBrk(void *addr){
-	printf("kernel break\n");
 	TracePrintf(0,"kernel break\n");
 
 	if (addr > (void*) VMEM_1_LIMIT || addr < (void*) VMEM_1_BASE){
