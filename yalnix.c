@@ -305,9 +305,6 @@ void trapTtyReceive(ExceptionStackFrame *frame) {
 void trapTtyTransmit(ExceptionStackFrame *frame) {     
 	int id = (int)frame->code;
 	isWriting[id] = 0;
-	printf("her\n");
-	// memset(terminal_write_buffers[id], 0, TERMINAL_MAX_LINE);
-	printf("nowher\n");
 }
 
 int Delay(int clock_ticks){
@@ -814,14 +811,14 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 		new_page->pfn = i;
 	}
 
-	int num_nodes_2 = pmem_size / PAGESIZE;
+	int num_nodes_2 = pmem_size / PAGESIZE - 1;
 	int top_page_cur = DOWN_TO_PAGE(actual_brk) / PAGESIZE + 1;
 	top_page_cur += (num_nodes_2 - top_page_cur) * sizeof(struct node) / PAGESIZE + 1;
 	printf("SUPERPOOP %d\n", top_page_cur);
 	int qqq;
 	for (qqq = top_page_cur; qqq < num_nodes_2; qqq++) {
 		struct node* new_page = malloc(sizeof(struct node));
-		// physical_pages[qqq] = new_page;
+		physical_pages[qqq] = new_page;
 		new_page->pfn = qqq;	
 	}
 
@@ -906,7 +903,6 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	physical_pages_length = pfn;
 	num_free_pages = physical_pages_length;
 	num_free_pages += num_nodes_2 - top_page_cur;
-	printf("free pages %d\n", num_free_pages);
 	WriteRegister(REG_PTR0, (RCS421RegVal) region_0);
 	WriteRegister(REG_PTR1, (RCS421RegVal) region_1);
 
@@ -1087,11 +1083,9 @@ int TtyRead(int tty_id, void *buf, int len) {
 }
 
 int TtyWrite(int tty_id, void *buf, int len) {
-	printf("Cur pid %d\n", cur_pcb->pid);
 	while(isWriting[tty_id]) {
 		doAContextSwitch();
 	}
-	printf("doing a write %s\n", buf);
 	isWriting[tty_id] = 1;
 	memcpy(terminal_write_buffers[tty_id], buf, len);
 	// terminal_write_buffers[tty_id][len+1] = 0;

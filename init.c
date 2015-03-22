@@ -29,6 +29,9 @@ int main(){
 	int counter = 4;
 	 
 			Fork();
+	
+			Fork();
+		TtyPrintf(0,"Process ID is: %d\n", GetPid());
 			while (1){
 		//printf("Or here\n");
 
@@ -37,7 +40,7 @@ int main(){
 		// Pause();
 		// printf("This is the last thing to print\n");
 		printf("Process ID is: %d\n", GetPid());
-		TtyPrintf(0,"Process ID is: %d\n", GetPid());
+		
 		TtyWrite(0, "brown is sweet\n", 15);
 		// printf("0 Sucessfully got %s\n", str);
 		TtyWrite(1, "we're nice people\n", 18);
