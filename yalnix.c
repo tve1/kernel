@@ -305,6 +305,9 @@ void trapTtyReceive(ExceptionStackFrame *frame) {
 void trapTtyTransmit(ExceptionStackFrame *frame) {     
 	int id = (int)frame->code;
 	isWriting[id] = 0;
+	printf("her\n");
+	// memset(terminal_write_buffers[id], 0, TERMINAL_MAX_LINE);
+	printf("nowher\n");
 }
 
 int Delay(int clock_ticks){
@@ -818,7 +821,7 @@ void KernelStart (ExceptionStackFrame *frame, unsigned int pmem_size, void *orig
 	int qqq;
 	for (qqq = top_page_cur; qqq < num_nodes_2; qqq++) {
 		struct node* new_page = malloc(sizeof(struct node));
-		physical_pages[qqq] = new_page;
+		// physical_pages[qqq] = new_page;
 		new_page->pfn = qqq;	
 	}
 
@@ -1084,9 +1087,11 @@ int TtyRead(int tty_id, void *buf, int len) {
 }
 
 int TtyWrite(int tty_id, void *buf, int len) {
+	printf("Cur pid %d\n", cur_pcb->pid);
 	while(isWriting[tty_id]) {
 		doAContextSwitch();
 	}
+	printf("doing a write %s\n", buf);
 	isWriting[tty_id] = 1;
 	memcpy(terminal_write_buffers[tty_id], buf, len);
 	// terminal_write_buffers[tty_id][len+1] = 0;
