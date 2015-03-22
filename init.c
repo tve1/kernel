@@ -13,19 +13,19 @@ int main(){
 	Pause();
 	Pause();
 	char* str = malloc(TERMINAL_MAX_LINE);
-	// int* ptr = malloc(sizeof(int));
-	// int a = Wait(ptr);
-	// printf("A: %d\n", a);
-	// int pid = Fork();
-	// if (pid != 0){
-	// 	char** args = malloc(sizeof(char*));
-	// 	args[0] = NULL;
-	// 	Exec("mm", args);
-	// }
-	// int b = Wait(ptr);
-	// printf("B: %d\n", b);
-	// printf("status: %d\n", ptr[0]);
-	// printf("THIS PID:%d\n",pid);
+	int* ptr = malloc(sizeof(int));
+	int a = Wait(ptr);
+	printf("A: %d\n", a);
+	int pid = Fork();
+	if (pid != 0){
+		char** args = malloc(sizeof(char*));
+		args[0] = NULL;
+		Exec("mm", args);
+	}
+	int b = Wait(ptr);
+	printf("B: %d\n", b);
+	printf("status: %d\n", ptr[0]);
+	printf("THIS PID:%d\n",pid);
 	int counter = 4;
 	 
 			Fork();
@@ -34,20 +34,21 @@ int main(){
 		TtyPrintf(0,"Process ID is: %d\n", GetPid());
 			while (1){
 		//printf("Or here\n");
-
+				Fork();
 		// if (counter-- >0) {
 		// }
 		// Pause();
 		// printf("This is the last thing to print\n");
 		printf("Process ID is: %d\n", GetPid());
+		Pause();
 		
-		TtyWrite(0, "brown is sweet\n", 15);
+		// TtyWrite(0, "brown is sweet\n", 15);
 		// printf("0 Sucessfully got %s\n", str);
-		TtyWrite(1, "we're nice people\n", 18);
+		// TtyWrite(1, "we're nice people\n", 18);
 		// printf("1 Sucessfully got %s\n", str);
-		TtyWrite(2, "baker women have soft skin\n", 27);
+		// TtyWrite(2, "baker women have soft skin\n", 27);
 		// printf("2 Sucessfully got %s\n", str);
-		TtyWrite(3, "anti-anti-jacks\n", 16);
+		// TtyWrite(3, "anti-anti-jacks\n", 16);
 		// printf("3 Sucessfully got %s\n", str);
 		
 
