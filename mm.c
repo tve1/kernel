@@ -9,7 +9,6 @@ int main(){
 	printf("Process ID is: %d\n", GetPid());
 	// Fork();
 	x++;
-	printf("hell yeah %d\n",x);
 	printf("mm is exiting\n");
 	Exit(100);
 	return 0;

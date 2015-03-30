@@ -257,7 +257,7 @@ void trapClock(ExceptionStackFrame *frame){
 
 void trapIllegal(ExceptionStackFrame *frame){
 	TracePrintf(0, "trapIllegal");    
-	Halt(); 
+	Exit(1); 
 } 
 
 void trapMemory(ExceptionStackFrame *frame){     
@@ -292,8 +292,7 @@ void trapMemory(ExceptionStackFrame *frame){
 void trapMath(ExceptionStackFrame *frame){
 	TracePrintf(0, "trapMath\n");     
 	// TracePrintf(0, "Process %d recieved trap math. Terminating.\n");     
-	
-	Halt(); 
+	Exit(2); 
 } 
 
 void trapTtyReceive(ExceptionStackFrame *frame) {     
@@ -915,7 +914,7 @@ TracePrintf(0,
 	idleArgs[0] = NULL; 
 	initArgs[0] = NULL; 
 
-	LoadProgram("init", initArgs, init_pcb);
+	LoadProgram(cmd_args[0], cmd_args+1, init_pcb);
 	
 	init_pcb->pid = 1;
 	lastPid = 1;
