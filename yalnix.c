@@ -914,7 +914,7 @@ TracePrintf(0,
 	idleArgs[0] = NULL; 
 	initArgs[0] = NULL; 
 
-	LoadProgram(cmd_args[0], cmd_args+1, init_pcb);
+	LoadProgram(cmd_args[0], cmd_args+1 , init_pcb);
 	
 	init_pcb->pid = 1;
 	lastPid = 1;
@@ -1189,6 +1189,12 @@ void Exit(int status) {
 
 int Exec(char* filename, char **argvec){
 	TracePrintf(0, "executing %s\n", filename);
+	int i = 0;
+	while((filename[i] >= 'A' && filename[i] <= 'Z') || (filename[i] >= 'a' && filename[i] <= 'z') || (filename[i] >= '0' && filename[i] <= '0'))
+		i++;
+	if (filename[i] != NULL) {
+		return -1;
+	}
 	return LoadProgram(filename, argvec, cur_pcb);
 
 }

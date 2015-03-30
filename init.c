@@ -20,7 +20,7 @@ int main(){
 	if (pid != 0){
 		char** args = malloc(sizeof(char*));
 		args[0] = NULL;
-		Exec("mm", args);
+		printf("exec is %d\n", Exec("mm-", args));
 	}
 	int b = Wait(ptr);
 	printf("B: %d\n", b);
@@ -28,9 +28,9 @@ int main(){
 	printf("THIS PID:%d\n",pid);
 	int counter = 4;
 	 
-			Fork();
+			// Fork();
 	
-			Fork();
+			// Fork();
 		TtyPrintf(0,"Process ID is: %d\n", GetPid());
 			while (1){
 		//printf("Or here\n");
